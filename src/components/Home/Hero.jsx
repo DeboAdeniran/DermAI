@@ -1,13 +1,24 @@
+import { useNavigate } from "react-router-dom";
+
 export function Hero() {
+  const navigate = useNavigate();
+
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
     }
   };
-  const navigateToPage = (page) => {
-    window.dispatchEvent(new CustomEvent("navigate", { detail: page }));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const navigateToPage = (path, options = {}) => {
+    navigate(path);
+
+    if (options.scrollToTop !== false) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    if (options.closeMenu && options.setIsMenuOpen) {
+      options.setIsMenuOpen(false);
+    }
   };
   return (
     <section
@@ -22,7 +33,7 @@ export function Hero() {
           className="w-full h-full object-cover"
         />
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/30 to-transparent"></div>
+        <div className="absolute inset-0 bg-linear-to-r from-black/40 via-black/30 to-transparent"></div>
       </div>
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
@@ -36,10 +47,10 @@ export function Hero() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
-              onClick={() => navigateToPage("signup")}
+              onClick={() => navigateToPage("/signup")}
               className="px-8 py-4 bg-white/95 text-[#2a2420] rounded-full hover:bg-white hover:shadow-2xl transition-all font-light text-lg backdrop-blur-sm"
             >
-              Book a Consultation
+              Get Skin Analysis
             </button>
             <button
               onClick={() => scrollToSection("how-it-works")}

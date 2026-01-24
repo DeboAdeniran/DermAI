@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 export function HowItWorks() {
+  const navigate = useNavigate();
+
   const steps = [
     {
       number: "01",
@@ -102,9 +106,7 @@ export function HowItWorks() {
         <div className="text-center">
           <button
             onClick={() => {
-              window.dispatchEvent(
-                new CustomEvent("navigate", { detail: "signup" }),
-              );
+              navigate("/signup");
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className="px-10 py-4 bg-[#8b7355] text-white rounded-full hover:bg-[#6d5a43] hover:shadow-2xl transition-all font-light text-base sm:text-lg"

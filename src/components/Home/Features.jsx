@@ -31,7 +31,7 @@ export function Features() {
   return (
     <section
       id="features"
-      className="py-16 sm:py-20 lg:py-24 bg-gradient-to-br from-[#f8f6f3] via-white to-[#fdf9f0]"
+      className="py-16 sm:py-20 lg:py-24 bg-linear-to-br from-[#f8f6f3] via-white to-[#fdf9f0]"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -50,9 +50,9 @@ export function Features() {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="bg-white rounded-[1.5rem] p-6 sm:p-8 shadow-xl hover:shadow-2xl transition-all border border-[#e8e6e3]/30 group hover:-translate-y-1"
+              className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl hover:shadow-2xl transition-all border border-[#e8e6e3]/30 group hover:-translate-y-1"
             >
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center mb-4 sm:mb-6 group-hover:shadow-lg transition-all">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-linear-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center mb-4 sm:mb-6 group-hover:shadow-lg transition-all">
                 <feature.icon className="text-white" size={24} />
               </div>
               <h3 className="text-lg sm:text-xl text-[#2a2420] mb-3 font-light">

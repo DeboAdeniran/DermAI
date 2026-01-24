@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Menu, X, Info, Sparkles, Settings, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function Navigation() {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -21,10 +23,16 @@ export function Navigation() {
     }
   };
 
-  const navigateToPage = (page) => {
-    window.dispatchEvent(new CustomEvent("navigate", { detail: page }));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setIsMenuOpen(false);
+  const navigateToPage = (path, options = {}) => {
+    navigate(path);
+
+    if (options.scrollToTop !== false) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    if (options.closeMenu && options.setIsMenuOpen) {
+      options.setIsMenuOpen(false);
+    }
   };
 
   return (
@@ -44,7 +52,7 @@ export function Navigation() {
                 onClick={() => scrollToSection("hero")}
                 className="flex items-center gap-2 group"
               >
-                <div className="w-8 h-8 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center group-hover:shadow-lg transition-all">
+                <div className="w-8 h-8 sm:w-8 sm:h-8 rounded-full bg-linear-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center group-hover:shadow-lg transition-all">
                   <svg
                     width="16"
                     height="16"
@@ -91,13 +99,13 @@ export function Navigation() {
             {/* Right Side - CTA Button */}
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigateToPage("login")}
+                onClick={() => navigateToPage("/login")}
                 className="hidden sm:block px-3 py-1.5 text-[#5a5450] hover:text-[#2a2420] rounded-full hover:bg-[#f8f6f3] transition-all font-light text-sm"
               >
                 Sign In
               </button>
               <button
-                onClick={() => navigateToPage("signup")}
+                onClick={() => navigateToPage("/signup")}
                 className="hidden md:block px-4 py-1.5 bg-[#8b7355] text-white rounded-full hover:bg-[#6d5a43] hover:shadow-lg transition-all font-light text-xs sm:text-sm"
               >
                 Get Skin Analysis
@@ -131,15 +139,15 @@ export function Navigation() {
 
           {/* Menu Panel */}
           <div className="fixed top-20 left-4 right-4 md:hidden z-50 animate-in slide-in-from-top-4 duration-300">
-            <div className="bg-white/95 backdrop-blur-xl rounded-[1.5rem] shadow-2xl border border-[#e8e6e3]/50 overflow-hidden">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-[#e8e6e3]/50 overflow-hidden">
               <div className="p-6">
                 {/* Navigation Links */}
                 <div className="space-y-2 mb-6">
                   <button
                     onClick={() => scrollToSection("about")}
-                    className="w-full flex items-center gap-3 text-[#2a2420] hover:bg-gradient-to-r hover:from-[#8b7355]/10 hover:to-[#6d5a43]/10 rounded-xl px-4 py-3.5 transition-all text-left group"
+                    className="w-full flex items-center gap-3 text-[#2a2420] hover:bg-linear-to-r hover:from-[#8b7355]/10 hover:to-[#6d5a43]/10 rounded-xl px-4 py-3.5 transition-all text-left group"
                   >
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center group-hover:from-[#8b7355]/20 group-hover:to-[#6d5a43]/20 transition-all">
+                    <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center group-hover:from-[#8b7355]/20 group-hover:to-[#6d5a43]/20 transition-all">
                       <Info size={18} className="text-[#8b7355]" />
                     </div>
                     <span className="font-light text-base">About</span>
@@ -147,9 +155,9 @@ export function Navigation() {
 
                   <button
                     onClick={() => scrollToSection("features")}
-                    className="w-full flex items-center gap-3 text-[#2a2420] hover:bg-gradient-to-r hover:from-[#8b7355]/10 hover:to-[#6d5a43]/10 rounded-xl px-4 py-3.5 transition-all text-left group"
+                    className="w-full flex items-center gap-3 text-[#2a2420] hover:bg-linear-to-r hover:from-[#8b7355]/10 hover:to-[#6d5a43]/10 rounded-xl px-4 py-3.5 transition-all text-left group"
                   >
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center group-hover:from-[#8b7355]/20 group-hover:to-[#6d5a43]/20 transition-all">
+                    <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center group-hover:from-[#8b7355]/20 group-hover:to-[#6d5a43]/20 transition-all">
                       <Sparkles size={18} className="text-[#8b7355]" />
                     </div>
                     <span className="font-light text-base">Features</span>
@@ -157,9 +165,9 @@ export function Navigation() {
 
                   <button
                     onClick={() => scrollToSection("how-it-works")}
-                    className="w-full flex items-center gap-3 text-[#2a2420] hover:bg-gradient-to-r hover:from-[#8b7355]/10 hover:to-[#6d5a43]/10 rounded-xl px-4 py-3.5 transition-all text-left group"
+                    className="w-full flex items-center gap-3 text-[#2a2420] hover:bg-linear-to-r hover:from-[#8b7355]/10 hover:to-[#6d5a43]/10 rounded-xl px-4 py-3.5 transition-all text-left group"
                   >
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center group-hover:from-[#8b7355]/20 group-hover:to-[#6d5a43]/20 transition-all">
+                    <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center group-hover:from-[#8b7355]/20 group-hover:to-[#6d5a43]/20 transition-all">
                       <Settings size={18} className="text-[#8b7355]" />
                     </div>
                     <span className="font-light text-base">Our Process</span>
@@ -167,12 +175,12 @@ export function Navigation() {
                 </div>
 
                 {/* Divider */}
-                <div className="h-px bg-gradient-to-r from-transparent via-[#e8e6e3] to-transparent mb-6" />
+                <div className="h-px bg-linear-to-r from-transparent via-[#e8e6e3] to-transparent mb-6" />
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
                   <button
-                    onClick={() => navigateToPage("login")}
+                    onClick={() => navigateToPage("/login")}
                     className="w-full flex items-center justify-center gap-2 px-5 py-3.5 border-2 border-[#e8e6e3] text-[#2a2420] rounded-xl hover:border-[#8b7355] hover:bg-[#8b7355]/5 transition-all font-light"
                   >
                     <LogIn size={18} className="text-[#8b7355]" />
@@ -180,8 +188,8 @@ export function Navigation() {
                   </button>
 
                   <button
-                    onClick={() => navigateToPage("signup")}
-                    className="w-full px-5 py-3.5 bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-xl hover:shadow-xl transition-all font-light"
+                    onClick={() => navigateToPage("/signup")}
+                    className="w-full px-5 py-3.5 bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-xl hover:shadow-xl transition-all font-light"
                   >
                     Get Skin Analysis
                   </button>

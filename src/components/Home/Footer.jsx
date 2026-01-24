@@ -1,6 +1,9 @@
 import { MapPin, Sparkles, Heart, Shield, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function Footer() {
+  const navigate = useNavigate();
+
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -8,13 +11,20 @@ export function Footer() {
     }
   };
 
-  const navigateToPage = (page) => {
-    window.dispatchEvent(new CustomEvent("navigate", { detail: page }));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const navigateToPage = (path, options = {}) => {
+    navigate(path);
+
+    if (options.scrollToTop !== false) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    if (options.closeMenu && options.setIsMenuOpen) {
+      options.setIsMenuOpen(false);
+    }
   };
 
   return (
-    <footer className="bg-gradient-to-br from-[#2a2420] via-[#352e28] to-[#2a2420] text-white relative overflow-hidden">
+    <footer className="bg-linear-to-br from-[#2a2420] via-[#352e28] to-[#2a2420] text-white relative overflow-hidden">
       {/* Decorative Elements */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-0 left-0 w-96 h-96 bg-[#8b7355] rounded-full blur-3xl"></div>
@@ -27,12 +37,12 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 rounded-full bg-linear-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center shadow-lg">
                 <Sparkles className="text-white" size={20} />
               </div>
               <h2 className="text-2xl font-light tracking-tight">
                 <span className="text-white">derm</span>
-                <span className="bg-gradient-to-r from-[#c4a882] to-[#8b7355] bg-clip-text text-transparent">
+                <span className="bg-linear-to-r from-[#c4a882] to-[#8b7355] bg-clip-text text-transparent">
                   AI
                 </span>
               </h2>
@@ -77,7 +87,7 @@ export function Footer() {
           {/* Quick Links */}
           <div>
             <h3 className="text-white text-sm font-light mb-6 tracking-wide flex items-center gap-2">
-              <div className="w-1 h-4 bg-gradient-to-b from-[#8b7355] to-[#6d5a43] rounded-full"></div>
+              <div className="w-1 h-4 bg-linear-to-b from-[#8b7355] to-[#6d5a43] rounded-full"></div>
               Quick Links
             </h3>
             <ul className="space-y-3">
@@ -101,7 +111,7 @@ export function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => navigateToPage("signup")}
+                  onClick={() => navigateToPage("/signup")}
                   className="text-sm text-[#c4b5aa] hover:text-white transition-colors font-light flex items-center gap-2 group"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#8b7355] opacity-0 group-hover:opacity-100 transition-opacity"></span>
@@ -110,7 +120,7 @@ export function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => navigateToPage("privacy")}
+                  onClick={() => navigateToPage("/privacy")}
                   className="text-sm text-[#c4b5aa] hover:text-white transition-colors font-light flex items-center gap-2 group"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#8b7355] opacity-0 group-hover:opacity-100 transition-opacity"></span>
@@ -119,7 +129,7 @@ export function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => navigateToPage("terms")}
+                  onClick={() => navigateToPage("/terms")}
                   className="text-sm text-[#c4b5aa] hover:text-white transition-colors font-light flex items-center gap-2 group"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#8b7355] opacity-0 group-hover:opacity-100 transition-opacity"></span>
@@ -132,15 +142,12 @@ export function Footer() {
           {/* Contact */}
           <div>
             <h3 className="text-white text-sm font-light mb-6 tracking-wide flex items-center gap-2">
-              <div className="w-1 h-4 bg-gradient-to-b from-[#8b7355] to-[#6d5a43] rounded-full"></div>
+              <div className="w-1 h-4 bg-linear-to-b from-[#8b7355] to-[#6d5a43] rounded-full"></div>
               Location
             </h3>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
-                <MapPin
-                  size={16}
-                  className="text-[#8b7355] flex-shrink-0 mt-0.5"
-                />
+                <MapPin size={16} className="text-[#8b7355] shrink-0 mt-0.5" />
                 <span className="text-sm text-[#c4b5aa] font-light">
                   Lagos, Nigeria
                 </span>
@@ -152,7 +159,7 @@ export function Footer() {
         {/* Medical Disclaimer */}
         <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 mb-8 border border-white/10">
           <div className="flex gap-3">
-            <Shield size={20} className="text-[#8b7355] flex-shrink-0 mt-0.5" />
+            <Shield size={20} className="text-[#8b7355] shrink-0 mt-0.5" />
             <div>
               <p className="text-xs text-[#c4b5aa] font-light leading-relaxed">
                 <strong className="text-white font-normal">
@@ -177,25 +184,25 @@ export function Footer() {
           </p>
           <div className="flex flex-wrap gap-6 justify-center">
             <button
-              onClick={() => navigateToPage("privacy")}
+              onClick={() => navigateToPage("/privacy")}
               className="text-xs text-[#c4b5aa] hover:text-white transition-colors font-light"
             >
               Privacy
             </button>
             <button
-              onClick={() => navigateToPage("terms")}
+              onClick={() => navigateToPage("/terms")}
               className="text-xs text-[#c4b5aa] hover:text-white transition-colors font-light"
             >
               Terms
             </button>
             <button
-              onClick={() => navigateToPage("cookies")}
+              onClick={() => navigateToPage("/cookies")}
               className="text-xs text-[#c4b5aa] hover:text-white transition-colors font-light"
             >
               Cookies
             </button>
             <button
-              onClick={() => navigateToPage("disclaimer")}
+              onClick={() => navigateToPage("/disclaimer")}
               className="text-xs text-[#c4b5aa] hover:text-white transition-colors font-light"
             >
               Disclaimer
