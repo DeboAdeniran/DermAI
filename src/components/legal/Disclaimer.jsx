@@ -72,7 +72,7 @@ export function Disclaimer() {
               Medical Disclaimer
             </h1>
             <p className="text-lg text-[#5a5450] font-light">
-              Last updated: December 21, 2024
+              Last updated: February 27, 2026
             </p>
           </div>
 

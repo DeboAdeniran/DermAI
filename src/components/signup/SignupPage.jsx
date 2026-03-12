@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, ArrowLeft, Menu, X, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { auth, setToken, saveUser } from "../../services/api";
 
 export function SignupPage() {
   const navigate = useNavigate();
@@ -14,59 +15,57 @@ export function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    setError("");
     if (!acceptedTerms) {
-      alert("Please accept the Terms of Service to continue");
+      setError("Please accept the Terms of Service to continue");
       return;
     }
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setError("Passwords do not match");
       return;
     }
-    // Handle signup
-    console.log("Signup:", formData);
-    // Redirect to onboarding flow
-    navigate("/onboarding");
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await auth.signup({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      setToken(data.accessToken);
+      saveUser(data.user);
+      navigate("/onboarding");
+    } catch (err) {
+      setError(err.message || "Signup failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleSignup = () => {
-    console.log("Google signup");
-    alert("Google OAuth integration would happen here");
-  };
+  const handleGoogleSignup = () => auth.googleLogin();
 
-  const handleFacebookSignup = () => {
-    console.log("Facebook signup");
-    alert("Facebook OAuth integration would happen here");
-  };
-
-  const navigateToPage = (path, options = {}) => {
+  const navigateToPage = (path) => {
     navigate(path);
-
-    if (options.scrollToTop !== false) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    if (options.closeMenu && options.setIsMenuOpen) {
-      options.setIsMenuOpen(false);
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-[#e8e6e3] via-[#f0ede8] to-[#f5f3ef] flex flex-col">
-      {/* Enhanced Header */}
       <nav className="fixed top-0 left-0 right-0 z-50 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-white/90 backdrop-blur-md shadow-xl rounded-full">
             <div className="flex justify-between items-center h-14 px-4 sm:px-6">
-              {/* Logo */}
               <button
                 onClick={() => navigateToPage("/home")}
                 className="flex items-center gap-2 group"
@@ -91,8 +90,6 @@ export function SignupPage() {
                   <span className="text-[#8b7355]">AI</span>
                 </span>
               </button>
-
-              {/* Desktop Actions */}
               <div className="hidden sm:flex items-center gap-3">
                 <button
                   onClick={() => navigateToPage("/login")}
@@ -101,8 +98,6 @@ export function SignupPage() {
                   Sign In
                 </button>
               </div>
-
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="sm:hidden p-2 rounded-full hover:bg-[#f8f6f3] transition-all"
@@ -119,44 +114,36 @@ export function SignupPage() {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <>
           <div
             className="fixed inset-0 bg-black/20 backdrop-blur-sm sm:hidden z-40 mt-20"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-
           <div className="fixed top-24 left-4 right-4 sm:hidden z-50">
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-[#e8e6e3]/50 overflow-hidden">
-              <div className="p-6">
-                <div className="space-y-3">
-                  <button
-                    onClick={() => navigateToPage("/home")}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 border-2 border-[#e8e6e3] text-[#2a2420] rounded-xl hover:border-[#8b7355] hover:bg-[#8b7355]/5 transition-all font-light"
-                  >
-                    <ArrowLeft size={18} className="text-[#8b7355]" />
-                    Back to Home
-                  </button>
-
-                  <button
-                    onClick={() => navigateToPage("/login")}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-xl hover:shadow-xl transition-all font-light"
-                  >
-                    <LogIn size={18} />
-                    Sign In
-                  </button>
-                </div>
+              <div className="p-6 space-y-3">
+                <button
+                  onClick={() => navigateToPage("/home")}
+                  className="w-full flex items-center justify-center gap-2 px-5 py-3.5 border-2 border-[#e8e6e3] text-[#2a2420] rounded-xl hover:border-[#8b7355] hover:bg-[#8b7355]/5 transition-all font-light"
+                >
+                  <ArrowLeft size={18} className="text-[#8b7355]" /> Back to
+                  Home
+                </button>
+                <button
+                  onClick={() => navigateToPage("/login")}
+                  className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-xl hover:shadow-xl transition-all font-light"
+                >
+                  <LogIn size={18} /> Sign In
+                </button>
               </div>
             </div>
           </div>
         </>
       )}
 
-      {/* Main Content */}
       <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28">
         <div className="max-w-md w-full">
-          {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl sm:text-4xl text-[#2a2420] mb-3 font-light">
               Create your account
@@ -167,6 +154,13 @@ export function SignupPage() {
           </div>
 
           <div className="bg-white/90 backdrop-blur-sm rounded-4xl shadow-2xl p-6 sm:p-8 border border-[#e8e6e3]/50">
+            {/* Error message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-light">
+                {error}
+              </div>
+            )}
+
             {/* Social Sign Up */}
             <div className="space-y-3 mb-6">
               <button
@@ -193,19 +187,8 @@ export function SignupPage() {
                 </svg>
                 <span className="text-[#2a2420]">Continue with Google</span>
               </button>
-
-              <button
-                onClick={handleFacebookSignup}
-                className="w-full flex items-center justify-center gap-3 px-6 py-3 border border-[#e8e6e3] rounded-2xl hover:bg-[#f8f6f3] hover:shadow-md transition-all font-light"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="#1877F2">
-                  <path d="M20 10c0-5.523-4.477-10-10-10S0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.988C16.343 19.128 20 14.991 20 10z" />
-                </svg>
-                <span className="text-[#2a2420]">Continue with Facebook</span>
-              </button>
             </div>
 
-            {/* Divider */}
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-[#e8e6e3]"></div>
@@ -217,7 +200,6 @@ export function SignupPage() {
               </div>
             </div>
 
-            {/* Email Sign Up Form */}
             <div className="space-y-4">
               <div>
                 <label
@@ -236,7 +218,6 @@ export function SignupPage() {
                   placeholder="Enter your full name"
                 />
               </div>
-
               <div>
                 <label
                   htmlFor="email"
@@ -254,7 +235,6 @@ export function SignupPage() {
                   placeholder="your.email@example.com"
                 />
               </div>
-
               <div>
                 <label
                   htmlFor="password"
@@ -281,7 +261,6 @@ export function SignupPage() {
                   </button>
                 </div>
               </div>
-
               <div>
                 <label
                   htmlFor="confirmPassword"
@@ -313,7 +292,6 @@ export function SignupPage() {
                 </div>
               </div>
 
-              {/* Terms Checkbox */}
               <div className="flex items-start gap-3 pt-2">
                 <input
                   type="checkbox"
@@ -347,13 +325,20 @@ export function SignupPage() {
 
               <button
                 onClick={handleSubmit}
-                className="w-full px-6 py-3.5 bg-[#2a2420] text-white rounded-2xl hover:bg-[#3a3430] transition-all hover:shadow-lg mt-6 font-light"
+                disabled={isLoading}
+                className="w-full px-6 py-3.5 bg-[#2a2420] text-white rounded-2xl hover:bg-[#3a3430] transition-all hover:shadow-lg mt-6 font-light disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Create Account
+                {isLoading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  "Create Account"
+                )}
               </button>
             </div>
 
-            {/* Login Link */}
             <div className="mt-6 text-center">
               <p className="text-[#5a5450] font-light">
                 Already have an account?{" "}
@@ -367,7 +352,6 @@ export function SignupPage() {
             </div>
           </div>
 
-          {/* Footer Note */}
           <p className="text-center text-sm text-[#8b7355] mt-6 font-light">
             By signing up, you agree to receive personalized skincare
             recommendations

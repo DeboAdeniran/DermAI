@@ -1,663 +1,386 @@
-import { useState } from "react";
-import { LineChart, Line, ResponsiveContainer } from "recharts";
-import { ProfileUpdateModal } from "./ProfileUpdateModal";
-import { ContinueRoutineModal } from "./ContinueRoutineModal";
-import { EducationalTipModal } from "./EducationalTipModal";
+import { useState, useEffect, useCallback } from "react";
 import { AuthNav } from "../ui/AuthNav";
+import { ProfileUpdateModal } from "../dashboard/ProfileUpdateModal";
 import {
-  Lightbulb,
-  ThumbsUp,
-  ThumbsDown,
-  ChevronDown,
-  ChevronRight,
-  Check,
-  ChevronUp,
-  Play,
-  Pause,
-  Clock,
-  Sun,
-  Bell,
-  TrendingUp,
-  Circle,
-  TrendingDown,
-  AlertCircle,
-  Sparkles,
-  Droplets,
-  Shield,
-  Heart,
-  ShoppingCart,
-  BarChart,
-  Calendar,
-  Target,
-  Zap,
-  Star,
-  Users,
-  Award,
-  Package,
+  Sparkles, Zap, ShoppingCart, BookOpen, LayoutDashboard,
+  TrendingUp, TrendingDown, Flame, Star, CheckCircle2,
+  ChevronRight, Loader, Bell, Lightbulb, BarChart2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { analyses, users, routines, products, notifications, getUser } from "../../services/api";
 
-// Mock data
-const mockUser = {
-  name: "Ada",
-  skinType: "Oily, Acne-Prone",
-  lastAnalysis: "December 15, 2024",
-};
+// ─── Custom chart tooltip ─────────────────────────────────────────────────────
+function ScoreTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-[#e8e6e3] rounded-xl shadow-lg px-3 py-2">
+      <p className="text-xs text-[#8b7355] font-light mb-0.5">{label}</p>
+      <p className="text-lg text-[#2a2420] font-light">{payload[0].value}<span className="text-xs ml-1 text-[#8b7355]">/ 100</span></p>
+    </div>
+  );
+}
 
-const skinHealthData = [
-  { date: "Nov 21", score: 65 },
-  { date: "Nov 24", score: 68 },
-  { date: "Nov 27", score: 70 },
-  { date: "Nov 30", score: 72 },
-  { date: "Dec 3", score: 71 },
-  { date: "Dec 6", score: 74 },
-  { date: "Dec 9", score: 76 },
-  { date: "Dec 12", score: 78 },
-  { date: "Dec 15", score: 80 },
-  { date: "Dec 18", score: 82 },
-  { date: "Dec 21", score: 85 },
-];
-
-const amRoutine = [
-  { name: "Gentle Cleanser", completed: true },
-  { name: "Vitamin C Serum", completed: true },
-  { name: "Moisturizer", completed: true },
-  { name: "Sunscreen SPF 50", completed: false },
-];
-
-const pmRoutine = [
-  { name: "Double Cleanse", completed: true },
-  { name: "Toner", completed: true },
-  { name: "Niacinamide Serum", completed: false },
-  { name: "Night Cream", completed: false },
-];
-
-const recommendedProducts = [
-  {
-    id: 1,
-    name: "CeraVe Hydrating Cleanser",
-    brand: "CeraVe",
-    price: "₦8,500",
-    rating: null,
-    image:
-      "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=200&h=200&fit=crop",
-  },
-  {
-    id: 2,
-    name: "The Ordinary Niacinamide",
-    brand: "The Ordinary",
-    price: "₦4,200",
-    rating: "up",
-    image:
-      "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=200&h=200&fit=crop",
-  },
-  {
-    id: 3,
-    name: "Neutrogena Oil-Free Moisturizer",
-    brand: "Neutrogena",
-    price: "₦6,800",
-    rating: "up",
-    image:
-      "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=200&h=200&fit=crop",
-  },
-];
-
-const tipOfTheDay = {
-  title: "Hydration is Key!",
-  content:
-    "Even oily skin needs moisture. Skipping moisturizer can cause your skin to produce more oil to compensate for dehydration.",
-  category: "Skincare Basics",
-};
-
-const reminders = [
-  {
-    type: "routine",
-    message: "Apply sunscreen in 2 hours",
-    time: "2:00 PM",
-    icon: <Sun size={16} className="text-[#5a5450]" />,
-  },
-  {
-    type: "restock",
-    message: "Vitamin C Serum running low",
-    time: "3 days left",
-    icon: <Bell size={16} className="text-[#5a5450]" />,
-  },
-];
+// ─── Stat card ────────────────────────────────────────────────────────────────
+function StatCard({ label, value, sub, icon: Icon, gradient }) {
+  return (
+    <div className={`rounded-2xl p-5 text-white shadow-md ${gradient}`}>
+      <div className="flex items-start justify-between mb-3">
+        <p className="text-xs font-light opacity-80">{label}</p>
+        <Icon size={18} className="opacity-70" />
+      </div>
+      <p className="text-3xl font-light mb-1">{value ?? "—"}</p>
+      {sub && <p className="text-xs font-light opacity-70">{sub}</p>}
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const [activeRoutine, setActiveRoutine] = useState("AM");
-  const [productRatings, setProductRatings] = useState(
-    recommendedProducts.reduce((acc, p) => ({ ...acc, [p.id]: p.rating }), {}),
-  );
+  const user     = getUser();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isContinueRoutineModalOpen, setIsContinueRoutineModalOpen] =
-    useState(false);
-  const [isEducationalTipModalOpen, setIsEducationalTipModalOpen] =
-    useState(false);
-  const [expandedSection, setExpandedSection] = useState("routine");
 
-  const currentRoutine = activeRoutine === "AM" ? amRoutine : pmRoutine;
-  const completedSteps = currentRoutine.filter((step) => step.completed).length;
-  const progressPercentage = (completedSteps / currentRoutine.length) * 100;
-  const currentScore = skinHealthData[skinHealthData.length - 1].score;
+  // Data
+  const [stats, setStats]           = useState(null);
+  const [routine, setRoutine]       = useState(null);
+  const [todayLog, setTodayLog]     = useState(null);
+  const [latestAnalysis, setLatestAnalysis] = useState(null);
+  const [recProducts, setRecProducts] = useState([]);
+  const [recentNotifs, setRecentNotifs] = useState([]);
+  const [unreadCount, setUnreadCount]  = useState(0);
+  const [loading, setLoading]       = useState(true);
+  const [activePeriod, setActivePeriod] = useState("am");
+  const [completing, setCompleting] = useState(null); // stepId being completed
 
-  const handleRating = (productId, rating) => {
-    setProductRatings((prev) => ({
-      ...prev,
-      [productId]: prev[productId] === rating ? null : rating,
-    }));
+  const loadData = useCallback(async () => {
+    const [statsRes, routineRes, analysisRes, prodsRes, notifsRes] = await Promise.allSettled([
+      users.getStats(),
+      routines.getCurrent(),
+      analyses.getLatest(),
+      products.getRecommended(),
+      notifications.getAll(1, 5),
+    ]);
+    if (statsRes.status    === "fulfilled") setStats(statsRes.value.stats);
+    if (routineRes.status  === "fulfilled") { setRoutine(routineRes.value.routine); setTodayLog(routineRes.value.todayLog); }
+    if (analysisRes.status === "fulfilled") setLatestAnalysis(analysisRes.value.analysis);
+    if (prodsRes.status    === "fulfilled") setRecProducts((prodsRes.value.products || []).slice(0, 3));
+    if (notifsRes.status   === "fulfilled") { setRecentNotifs(notifsRes.value.notifications || []); setUnreadCount(notifsRes.value.unreadCount || 0); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // ── Mark a step complete ─────────────────────────────────────────────────────
+  const handleCompleteStep = async (stepId) => {
+    setCompleting(stepId);
+    try {
+      const allSteps = activePeriod === "am" ? (routine?.amSteps || []) : (routine?.pmSteps || []);
+      await routines.completeSession(activePeriod, allSteps.map(s => s._id), []);
+      await loadData();
+    } catch {}
+    setCompleting(null);
   };
 
-  const toggleSection = (section) => {
-    setExpandedSection(expandedSection === section ? null : section);
+  // ── Mark whole session done ──────────────────────────────────────────────────
+  const handleCompleteSession = async () => {
+    const allSteps = activePeriod === "am" ? (routine?.amSteps || []) : (routine?.pmSteps || []);
+    setCompleting("session");
+    try {
+      await routines.completeSession(activePeriod, allSteps.map(s => s._id), []);
+      await loadData();
+    } catch {}
+    setCompleting(null);
   };
+
+  // ── Chart data ───────────────────────────────────────────────────────────────
+  const chartData = (stats?.scoreHistory || []).map((p) => ({
+    date: new Date(p.date).toLocaleDateString("en-NG", { month:"short", day:"numeric" }),
+    score: p.score,
+  }));
+  const hasChart  = chartData.length >= 2;
+  const scoreDiff = hasChart ? chartData[chartData.length-1].score - chartData[0].score : 0;
+
+  // ── Today's steps ────────────────────────────────────────────────────────────
+  const currentSteps = activePeriod === "am" ? (routine?.amSteps || []) : (routine?.pmSteps || []);
+  const completedIds = new Set([
+    ...((todayLog?.amStepsCompleted || []).map(s => s.stepId)),
+    ...((todayLog?.pmStepsCompleted || []).map(s => s.stepId)),
+  ]);
+  const sessionDone = activePeriod === "am" ? todayLog?.amCompleted : todayLog?.pmCompleted;
+  const completedCount = currentSteps.filter(s => completedIds.has(s._id?.toString()) || sessionDone).length;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#e8e6e3] via-[#f0ede8] to-[#f5f3ef]">
-      {/* Profile Update Modal */}
-      <ProfileUpdateModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-      />
-
-      {/* Continue Routine Modal */}
-      <ContinueRoutineModal
-        isOpen={isContinueRoutineModalOpen}
-        onClose={() => setIsContinueRoutineModalOpen(false)}
-        routineType={activeRoutine}
-      />
-
-      {/* Educational Tip Modal */}
-      <EducationalTipModal
-        isOpen={isEducationalTipModalOpen}
-        onClose={() => setIsEducationalTipModalOpen(false)}
-        tip={tipOfTheDay}
-      />
-
-      {/* Authenticated Navigation */}
-      <AuthNav
-        currentPage="dashboard"
-        userName={mockUser.name}
-        onUpdateProfile={() => setIsProfileModalOpen(true)}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-[#e8e6e3] via-[#f0ede8] to-[#f5f3ef]">
+      <ProfileUpdateModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+      <AuthNav currentPage="dashboard" userName={user?.name} onUpdateProfile={() => setIsProfileModalOpen(true)} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-24 sm:pt-28">
-        {/* Main Dashboard Container */}
-        <div className="bg-linear-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-[2.5rem] shadow-2xl p-6 sm:p-8">
-          {/* Welcome Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl sm:text-4xl text-[#2a2420] mb-2 font-light">
-              Welcome in, {mockUser.name}
-            </h1>
-          </div>
 
-          {/* Status Pills & Stats */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            {/* Status Pills */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveRoutine("AM")}
-                className={`px-4 py-2 rounded-full text-sm transition-all font-light ${
-                  activeRoutine === "AM"
-                    ? "bg-[#2a2420] text-white"
-                    : "bg-white/60 text-[#5a5450] hover:bg-white"
-                }`}
-              >
-                AM Routine
-              </button>
-              <button
-                onClick={() => setActiveRoutine("PM")}
-                className={`px-4 py-2 rounded-full text-sm transition-all font-light ${
-                  activeRoutine === "PM"
-                    ? "bg-[#2a2420] text-white"
-                    : "bg-white/60 text-[#5a5450] hover:bg-white"
-                }`}
-              >
-                PM Routine
-              </button>
-              <div className="px-4 py-2 rounded-full bg-white/60 text-[#5a5450] text-sm font-light">
-                {mockUser.skinType}
-              </div>
-            </div>
+        {/* Welcome */}
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl text-[#2a2420] font-light">
+            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} 👋
+          </h1>
+          <p className="text-sm text-[#5a5450] font-light mt-1">Here's your skin health overview for today</p>
+        </div>
 
-            {/* Stats */}
-            <div className="flex flex-wrap gap-6">
-              <div className="flex items-center gap-2">
-                <span className="text-3xl text-[#2a2420] font-light">
-                  {currentScore}
-                </span>
-                <span className="text-xs text-[#8b7355] font-light">
-                  Skin Score
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-3xl text-[#2a2420] font-light">
-                  {completedSteps}
-                </span>
-                <span className="text-xs text-[#8b7355] font-light">
-                  Completed
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-3xl text-[#2a2420] font-light">
-                  {recommendedProducts.length}
-                </span>
-                <span className="text-xs text-[#8b7355] font-light">
-                  Products
-                </span>
-              </div>
-            </div>
-          </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-20"><Loader size={28} className="text-[#8b7355] animate-spin" /></div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-          {/* Main Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Left Sidebar */}
-            <div className="lg:col-span-3 space-y-3">
-              {/* Profile Card */}
-              <div className="bg-linear-to-br from-[#2a2420] to-[#3a3430] rounded-3xl p-6 text-white shadow-lg">
-                <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-white/10">
-                  <img
-                    src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400&h=400&fit=crop"
-                    alt={mockUser.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <h3 className="text-xl mb-1 font-light">{mockUser.name}</h3>
-                <p className="text-sm text-white/70 font-light mb-3">
-                  {mockUser.skinType}
-                </p>
-                <div className="bg-white/20 rounded-xl px-3 py-2 text-sm font-light">
-                  Score: {currentScore}/100
-                </div>
+            {/* ── Left/Main column ─────────────────────────────────────────── */}
+            <div className="xl:col-span-2 space-y-6">
+
+              {/* Stat cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard label="Skin Score"      value={stats?.currentSkinScore ?? "—"}  sub={scoreDiff !== 0 ? `${scoreDiff > 0 ? "+" : ""}${scoreDiff} vs 30d ago` : "No change"} icon={Sparkles}    gradient="bg-gradient-to-br from-[#8b7355] to-[#6d5a43]" />
+                <StatCard label="Day Streak"      value={stats?.routineStreak ?? 0}        sub={`Best: ${stats?.longestStreak ?? 0}`}                                                  icon={Flame}       gradient="bg-gradient-to-br from-amber-500 to-orange-600" />
+                <StatCard label="Analyses"        value={stats?.totalAnalyses ?? 0}        sub="lifetime total"                                                                        icon={BarChart2}   gradient="bg-gradient-to-br from-blue-500 to-indigo-600" />
+                <StatCard label="Notifications"   value={unreadCount}                      sub="unread"                                                                                icon={Bell}        gradient="bg-gradient-to-br from-emerald-500 to-teal-600" />
               </div>
 
-              {/* Collapsible Sections */}
-              <div className="bg-white/80 rounded-2xl overflow-hidden shadow-md">
-                {/* Skin Health Section */}
-                <button
-                  onClick={() => toggleSection("health")}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/60 transition-colors"
-                >
-                  <span className="text-sm text-[#2a2420] font-light">
-                    Skin Health
-                  </span>
-                  {expandedSection === "health" ? (
-                    <ChevronDown size={16} />
-                  ) : (
-                    <ChevronRight size={16} />
+              {/* Skin score chart */}
+              <div className="bg-white/90 rounded-3xl p-5 sm:p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg text-[#2a2420] font-light">Skin Health Trend</h3>
+                    <p className="text-xs text-[#5a5450] font-light mt-0.5">Last 30 days</p>
+                  </div>
+                  {hasChart && (
+                    <div className={`flex items-center gap-1.5 text-sm font-light px-3 py-1.5 rounded-full ${scoreDiff >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {scoreDiff >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                      {scoreDiff >= 0 ? "+" : ""}{scoreDiff} pts
+                    </div>
                   )}
-                </button>
-                {expandedSection === "health" && (
-                  <div className="px-4 pb-3 text-xs text-[#5a5450] font-light space-y-2">
-                    <div className="flex justify-between">
-                      <span>Current Score</span>
-                      <span className="text-[#8b7355]">{currentScore}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Weekly Change</span>
-                      <span className="text-green-600">+5</span>
-                    </div>
+                </div>
+
+                {hasChart ? (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <AreaChart data={chartData} margin={{ top:5, right:5, left:-20, bottom:0 }}>
+                      <defs>
+                        <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#8b7355" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#8b7355" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e8e6e3" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize:10, fill:"#8b7355" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                      <YAxis domain={[0,100]} tick={{ fontSize:10, fill:"#8b7355" }} tickLine={false} axisLine={false} />
+                      <Tooltip content={<ScoreTooltip />} />
+                      <Area type="monotone" dataKey="score" stroke="#8b7355" strokeWidth={2.5} fill="url(#scoreGrad)" dot={false} activeDot={{ r:5, fill:"#8b7355", stroke:"white", strokeWidth:2 }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <BarChart2 size={36} className="text-[#8b7355]/20 mb-3" />
+                    <p className="text-sm text-[#5a5450] font-light mb-3">Complete more analyses to see your progress chart</p>
+                    <button onClick={() => navigate("/analysis")} className="text-sm text-[#8b7355] font-light hover:underline flex items-center gap-1">
+                      Run first analysis <ChevronRight size={14} />
+                    </button>
                   </div>
                 )}
               </div>
 
-              <div className="bg-white/80 rounded-2xl overflow-hidden shadow-md">
-                {/* Products Section */}
-                <button
-                  onClick={() => toggleSection("products")}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/60 transition-colors"
-                >
-                  <span className="text-sm text-[#2a2420] font-light">
-                    Product Details
-                  </span>
-                  {expandedSection === "products" ? (
-                    <ChevronDown size={16} />
-                  ) : (
-                    <ChevronRight size={16} />
-                  )}
-                </button>
-                {expandedSection === "products" && (
-                  <div className="px-4 pb-3 text-xs text-[#5a5450] font-light space-y-2">
-                    <div>Recommended: {recommendedProducts.length}</div>
-                    <div>In Routine: {amRoutine.length + pmRoutine.length}</div>
+              {/* Today's routine */}
+              <div className="bg-white/90 rounded-3xl p-5 sm:p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg text-[#2a2420] font-light">Today's Routine</h3>
+                  <button onClick={() => navigate("/routine")} className="text-xs text-[#8b7355] font-light flex items-center gap-1 hover:underline">
+                    View full <ChevronRight size={12} />
+                  </button>
+                </div>
+
+                {!routine ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-[#5a5450] font-light mb-3">No routine yet — run a skin analysis first</p>
+                    <button onClick={() => navigate("/analysis")} className="px-4 py-2 bg-[#8b7355] text-white rounded-full text-xs font-light">Start Analysis</button>
                   </div>
+                ) : (
+                  <>
+                    {/* AM/PM tabs */}
+                    <div className="flex gap-2 mb-4">
+                      {["am","pm"].map((p) => (
+                        <button key={p} onClick={() => setActivePeriod(p)}
+                          className={`flex-1 py-2 rounded-xl text-sm font-light transition-all ${activePeriod === p ? "bg-[#2a2420] text-white" : "bg-[#f8f6f3] text-[#5a5450] hover:bg-[#e8e6e3]"}`}>
+                          {p === "am" ? "☀️ Morning" : "🌙 Evening"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Progress bar */}
+                    {currentSteps.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex justify-between text-xs text-[#5a5450] font-light mb-1">
+                          <span>{sessionDone ? currentSteps.length : completedCount}/{currentSteps.length} steps</span>
+                          <span>{sessionDone ? 100 : Math.round((completedCount/currentSteps.length)*100)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-[#e8e6e3] rounded-full">
+                          <div className="h-full bg-gradient-to-r from-[#8b7355] to-[#c4a882] rounded-full transition-all"
+                            style={{ width:`${sessionDone ? 100 : Math.round((completedCount/currentSteps.length)*100)}%` }} />
+                        </div>
+                      </div>
+                    )}
+
+                    {sessionDone ? (
+                      <div className="text-center py-6">
+                        <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
+                        <p className="text-sm text-emerald-700 font-light">🎉 {activePeriod.toUpperCase()} routine complete! Streak: {stats?.routineStreak ?? 0} days 🔥</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-2 mb-4">
+                          {currentSteps.slice(0, 4).map((step) => {
+                            const done = completedIds.has(step._id?.toString());
+                            const prod = step.product;
+                            return (
+                              <div key={step._id} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${done ? "bg-emerald-50 opacity-70" : "bg-[#f8f6f3]"}`}>
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-light shrink-0 ${done ? "bg-emerald-500 text-white" : "bg-[#8b7355]/10 text-[#8b7355]"}`}>
+                                  {done ? <CheckCircle2 size={14} /> : step.stepOrder}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-light truncate ${done ? "line-through text-[#8b7355]/50" : "text-[#2a2420]"}`}>
+                                    {prod?.name || step.stepType}
+                                  </p>
+                                  {prod?.brand && <p className="text-xs text-[#8b7355] font-light">{prod.brand}</p>}
+                                </div>
+                                {completing === step._id ? <Loader size={14} className="text-[#8b7355] animate-spin shrink-0" /> : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <button onClick={handleCompleteSession} disabled={completing === "session"}
+                          className="w-full py-3 bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-xl text-sm font-light flex items-center justify-center gap-2 hover:shadow-md transition-all disabled:opacity-60">
+                          {completing === "session" ? <Loader size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                          Complete {activePeriod.toUpperCase()} Routine
+                        </button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
 
-              <div className="bg-white/80 rounded-2xl overflow-hidden shadow-md">
-                {/* Reminders Section */}
-                <button
-                  onClick={() => toggleSection("reminders")}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/60 transition-colors"
-                >
-                  <span className="text-sm text-[#2a2420] font-light">
-                    Reminders
-                  </span>
-                  {expandedSection === "reminders" ? (
-                    <ChevronDown size={16} />
-                  ) : (
-                    <ChevronRight size={16} />
-                  )}
+              {/* Latest analysis snapshot */}
+              {latestAnalysis && (
+                <button onClick={() => navigate("/results")} className="w-full bg-white/90 rounded-3xl p-5 shadow-lg flex items-center gap-4 text-left hover:shadow-xl transition-all group">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#f8f6f3] shrink-0">
+                    {latestAnalysis.photoUrl ? <img src={latestAnalysis.photoUrl} alt="skin" className="w-full h-full object-cover" /> : <Sparkles size={24} className="m-auto mt-4 text-[#8b7355]/30" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-[#8b7355] font-light mb-1">Latest Analysis</p>
+                    <p className="text-base text-[#2a2420] font-light truncate">{latestAnalysis.skinType} Skin · Score {latestAnalysis.analysisScore}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(latestAnalysis.conditions || []).slice(0,2).map((c) => <span key={c.name} className="text-xs bg-[#8b7355]/10 text-[#8b7355] px-2 py-0.5 rounded-full font-light">{c.name}</span>)}
+                    </div>
+                  </div>
+                  <ChevronRight size={18} className="text-[#8b7355] shrink-0 group-hover:translate-x-1 transition-transform" />
                 </button>
-                {expandedSection === "reminders" && (
-                  <div className="px-4 pb-3 text-xs text-[#5a5450] font-light space-y-2">
-                    {reminders.map((reminder, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        {reminder.icon}
-                        <span>{reminder.message}</span>
+              )}
+            </div>
+
+            {/* ── Right sidebar ─────────────────────────────────────────────── */}
+            <div className="space-y-5">
+
+              {/* Quick actions */}
+              <div className="bg-white/90 rounded-3xl p-5 shadow-lg">
+                <h3 className="text-base text-[#2a2420] font-light mb-4">Quick Actions</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label:"New Analysis", icon:Sparkles,     path:"/analysis",  primary:true  },
+                    { label:"My Routine",   icon:Zap,          path:"/routine",   primary:false },
+                    { label:"Products",     icon:ShoppingCart, path:"/products",  primary:false },
+                    { label:"Learn",        icon:BookOpen,     path:"/learn",     primary:false },
+                  ].map(({ label, icon:Icon, path, primary }) => (
+                    <button key={label} onClick={() => navigate(path)}
+                      className={`py-3 rounded-xl text-xs font-light flex flex-col items-center gap-1.5 transition-all ${primary ? "bg-gradient-to-br from-[#8b7355] to-[#6d5a43] text-white shadow-md" : "bg-[#f8f6f3] text-[#5a5450] hover:bg-[#e8e6e3]"}`}>
+                      <Icon size={18} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Skin tip */}
+              {latestAnalysis?.skinTip && (
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-3xl p-5 border border-amber-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb size={16} className="text-amber-600" />
+                    <p className="text-xs text-amber-700 font-light uppercase tracking-wide">Skin Tip</p>
+                  </div>
+                  <p className="text-sm text-amber-800 font-light leading-relaxed">{latestAnalysis.skinTip}</p>
+                </div>
+              )}
+
+              {/* Recommended products */}
+              {recProducts.length > 0 && (
+                <div className="bg-white/90 rounded-3xl p-5 shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base text-[#2a2420] font-light">For Your Skin</h3>
+                    <button onClick={() => navigate("/products")} className="text-xs text-[#8b7355] font-light hover:underline">See all</button>
+                  </div>
+                  <div className="space-y-3">
+                    {recProducts.map((rec, i) => {
+                      const p = rec.product || rec;
+                      return (
+                        <button key={i} onClick={() => navigate("/products")}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#f8f6f3] transition-all text-left">
+                          <div className="w-10 h-10 rounded-xl bg-[#f8f6f3] overflow-hidden shrink-0">
+                            {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" /> : <ShoppingCart size={14} className="m-auto mt-2.5 text-[#8b7355]/30" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-[#2a2420] font-light truncate">{p.name}</p>
+                            <p className="text-xs text-[#8b7355] font-light">₦{Number(p.price).toLocaleString("en-NG")}</p>
+                          </div>
+                          {rec.matchScore && <span className="text-[10px] bg-[#8b7355]/10 text-[#8b7355] px-1.5 py-0.5 rounded-full font-light shrink-0">{rec.matchScore}%</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent notifications */}
+              {recentNotifs.length > 0 && (
+                <div className="bg-white/90 rounded-3xl p-5 shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base text-[#2a2420] font-light flex items-center gap-2">
+                      Notifications
+                      {unreadCount > 0 && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full">{unreadCount}</span>}
+                    </h3>
+                    <button onClick={() => navigate("/notifications")} className="text-xs text-[#8b7355] font-light hover:underline">All</button>
+                  </div>
+                  <div className="space-y-2">
+                    {recentNotifs.slice(0, 4).map((n) => (
+                      <div key={n._id} className={`p-3 rounded-xl text-xs font-light ${!n.isRead ? "bg-[#fdf9f5] border border-[#8b7355]/20" : "bg-[#f8f6f3]"}`}>
+                        <p className={`leading-snug ${!n.isRead ? "text-[#2a2420]" : "text-[#5a5450]"}`}>{n.message}</p>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Center Content */}
-            <div className="lg:col-span-6 space-y-4">
-              {/* Progress Widget */}
-              <div className="bg-white/90 rounded-3xl p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg text-[#2a2420] font-light">
-                    Progress
-                  </h3>
-                  <button className="p-2 hover:bg-[#f8f6f3] rounded-lg transition-colors">
-                    <ChevronUp size={16} className="text-[#5a5450]" />
-                  </button>
                 </div>
+              )}
 
-                <div className="mb-4">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-4xl text-[#2a2420] font-light">
-                      {completedSteps}
-                    </span>
-                    <span className="text-sm text-[#8b7355] font-light">
-                      / {currentRoutine.length} steps
-                    </span>
+              {/* Streak milestone */}
+              {(stats?.routineStreak || 0) >= 3 && (
+                <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-3xl p-5 text-white shadow-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flame size={20} />
+                    <p className="text-base font-light">{stats.routineStreak} Day Streak!</p>
                   </div>
-                  <p className="text-xs text-[#5a5450] font-light">
-                    Current {activeRoutine} Routine
+                  <p className="text-xs font-light opacity-80">
+                    {stats.routineStreak >= 30 ? "Incredible dedication! You're a skincare champion 🏆" :
+                     stats.routineStreak >= 14 ? "Two weeks in! Your skin is loving the consistency 🌟" :
+                     stats.routineStreak >= 7  ? "One week strong! Keep going, results are coming 💪" :
+                     "Great start! Consistency is the key to great skin ✨"}
                   </p>
+                  {stats.longestStreak > stats.routineStreak && <p className="text-xs font-light opacity-60 mt-1">Personal best: {stats.longestStreak} days</p>}
                 </div>
-
-                {/* Progress Bar Chart */}
-                <div className="flex items-end justify-between h-32 gap-2 mb-4">
-                  {currentRoutine.map((step, idx) => (
-                    <div
-                      key={idx}
-                      className="flex-1 flex flex-col items-center gap-2"
-                    >
-                      <div
-                        className="w-full bg-[#f8f6f3] rounded-t-lg relative overflow-hidden"
-                        style={{ height: "100px" }}
-                      >
-                        <div
-                          className={`absolute bottom-0 w-full rounded-t-lg transition-all ${
-                            step.completed ? "bg-[#2a2420]" : "bg-[#e8e6e3]"
-                          }`}
-                          style={{ height: step.completed ? "80%" : "30%" }}
-                        ></div>
-                      </div>
-                      <span className="text-xs text-[#8b7355] font-light">
-                        {idx + 1}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-[#c4a882] rounded-xl px-3 py-2 inline-block">
-                  <span className="text-xs text-white font-light">
-                    {Math.round(progressPercentage)}% Complete
-                  </span>
-                </div>
-              </div>
-
-              {/* Skin Health Chart */}
-              <div className="bg-white/90 rounded-3xl p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg text-[#2a2420] font-light">
-                    Skin Health Tracker
-                  </h3>
-                  <button className="p-2 hover:bg-[#f8f6f3] rounded-lg transition-colors">
-                    <ChevronUp size={16} className="text-[#5a5450]" />
-                  </button>
-                </div>
-
-                {/* Circular Progress */}
-                <div className="flex items-center gap-6 mb-6">
-                  <div className="relative w-32 h-32">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle
-                        cx="64"
-                        cy="64"
-                        r="56"
-                        stroke="#e8e6e3"
-                        strokeWidth="10"
-                        fill="none"
-                      />
-                      <circle
-                        cx="64"
-                        cy="64"
-                        r="56"
-                        stroke="#c4a882"
-                        strokeWidth="10"
-                        fill="none"
-                        strokeDasharray={`${(currentScore / 100) * 352} 352`}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl text-[#2a2420] font-light">
-                        {currentScore}
-                      </span>
-                      <span className="text-xs text-[#8b7355] font-light">
-                        Score
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1">
-                    <ResponsiveContainer width="100%" height={100}>
-                      <LineChart data={skinHealthData.slice(-7)}>
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#8b7355"
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button className="p-2 bg-white border border-[#e8e6e3] rounded-lg hover:bg-[#f8f6f3] transition-colors">
-                    <Play size={16} className="text-[#5a5450]" />
-                  </button>
-                  <button className="p-2 bg-white border border-[#e8e6e3] rounded-lg hover:bg-[#f8f6f3] transition-colors">
-                    <Pause size={16} className="text-[#5a5450]" />
-                  </button>
-                  <button className="p-2 bg-[#2a2420] text-white rounded-lg hover:bg-[#3a3430] transition-colors">
-                    <Clock size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Products Grid */}
-              <div className="bg-white/90 rounded-3xl p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg text-[#2a2420] font-light">
-                    Recommended Products
-                  </h3>
-                  <button
-                    onClick={() => navigate("/products")}
-                    className="text-sm text-[#8b7355] hover:text-[#2a2420] transition-colors font-light"
-                  >
-                    View All →
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {recommendedProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center gap-3 p-3 bg-[#f8f6f3] rounded-2xl hover:bg-white transition-all"
-                    >
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-white shrink-0">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-[#8b7355] font-light">
-                          {product.brand}
-                        </p>
-                        <h4 className="text-sm text-[#2a2420] font-light truncate">
-                          {product.name}
-                        </h4>
-                        <p className="text-sm text-[#2a2420] font-light">
-                          {product.price}
-                        </p>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleRating(product.id, "up")}
-                          className={`p-2 rounded-lg transition-all ${
-                            productRatings[product.id] === "up"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-white text-[#8b7355] hover:bg-green-50"
-                          }`}
-                        >
-                          <ThumbsUp size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleRating(product.id, "down")}
-                          className={`p-2 rounded-lg transition-all ${
-                            productRatings[product.id] === "down"
-                              ? "bg-red-100 text-red-600"
-                              : "bg-white text-[#8b7355] hover:bg-red-50"
-                          }`}
-                        >
-                          <ThumbsDown size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Sidebar - Routine Task List */}
-            <div className="lg:col-span-3 space-y-4">
-              {/* Routine Progress */}
-              <div className="bg-white/90 rounded-3xl p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg text-[#2a2420] font-light">Today</h3>
-                  <span className="text-3xl font-light text-[#2a2420]">
-                    {Math.round(progressPercentage)}%
-                  </span>
-                </div>
-
-                <div className="flex gap-2 mb-6">
-                  <div className="flex-1 h-2 bg-[#c4a882] rounded-full"></div>
-                  <div className="flex-1 h-2 bg-[#2a2420] rounded-full"></div>
-                  <div className="flex-1 h-2 bg-[#e8e6e3] rounded-full"></div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-light">
-                    <span className="text-[#5a5450]">AM</span>
-                    <span className="text-[#8b7355]">
-                      {amRoutine.filter((s) => s.completed).length}/
-                      {amRoutine.length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs font-light">
-                    <span className="text-[#5a5450]">PM</span>
-                    <span className="text-[#8b7355]">
-                      {pmRoutine.filter((s) => s.completed).length}/
-                      {pmRoutine.length}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Routine Task Card */}
-              <div className="bg-[#2a2420] rounded-3xl p-6 text-white shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-light">
-                    {activeRoutine} Routine
-                  </h3>
-                  <span className="text-2xl font-light">
-                    {completedSteps}/{currentRoutine.length}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {currentRoutine.map((step, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-3 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                          step.completed ? "bg-[#c4a882]" : "bg-white/20"
-                        }`}
-                      >
-                        {step.completed ? (
-                          <Check size={16} />
-                        ) : (
-                          <span className="text-xs">{idx + 1}</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-light truncate">
-                          {step.name}
-                        </p>
-                        <p className="text-xs text-white/60 font-light">
-                          {step.completed ? "Completed" : "Pending"}
-                        </p>
-                      </div>
-                      <div
-                        className={`w-2 h-2 rounded-full ${step.completed ? "bg-[#c4a882]" : "bg-white/20"}`}
-                      ></div>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setIsContinueRoutineModalOpen(true)}
-                  className="w-full mt-4 px-4 py-3 bg-white text-[#2a2420] rounded-xl hover:bg-white/90 transition-all font-light"
-                >
-                  Continue Routine →
-                </button>
-              </div>
-
-              {/* Tip Card */}
-              <div className="bg-linear-to-br from-[#8b7355] to-[#6d5a43] rounded-3xl p-6 text-white shadow-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <Lightbulb size={20} />
-                  <span className="text-xs font-light opacity-90">
-                    {tipOfTheDay.category}
-                  </span>
-                </div>
-                <h4 className="text-sm mb-2 font-light">{tipOfTheDay.title}</h4>
-                <p className="text-xs opacity-90 font-light mb-3">
-                  {tipOfTheDay.content}
-                </p>
-                <button
-                  onClick={() => setIsEducationalTipModalOpen(true)}
-                  className="text-xs underline hover:no-underline transition-all font-light"
-                >
-                  Learn More →
-                </button>
-              </div>
+              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

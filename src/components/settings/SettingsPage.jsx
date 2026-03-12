@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable no-unused-vars */
+import { useState, useEffect } from "react";
 import { AuthNav } from "../ui/AuthNav";
 import { ProfileUpdateModal } from "../dashboard/ProfileUpdateModal";
 import {
@@ -7,520 +9,989 @@ import {
   Bell,
   Shield,
   Download,
-  Trash2,
   Mail,
   Phone,
   Heart,
   AlertCircle,
   CheckCircle2,
-  X,
-  Plus,
-  Sparkles,
+  Settings as SettingsIcon,
+  UserCircle,
   History,
   Calendar,
-  UserCircle,
-  Settings as SettingsIcon,
+  Loader,
+  Save,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
+import { users, getUser, saveUser } from "../../services/api";
+import { useTheme } from "../../context/ThemeContext";
 
-const ToggleSwitch = ({ enabled, onChange, className = "" }) => (
+const ToggleSwitch = ({ enabled, onChange }) => (
   <button
     onClick={onChange}
-    className={`relative w-14 h-7 rounded-full transition-all shrink-0 shadow-inner ${className} ${
-      enabled ? "bg-linear-to-r from-[#8b7355] to-[#6d5a43]" : "bg-[#e8e6e3]"
-    }`}
     type="button"
     role="switch"
     aria-checked={enabled}
+    className={`relative w-14 h-7 rounded-full transition-all shrink-0 shadow-inner ${enabled ? "bg-linear-to-r from-[#8b7355] to-[#6d5a43]" : "bg-(--bg-muted)"}`}
   >
     <div
-      className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-md ${
-        enabled ? "translate-x-7" : "translate-x-1"
-      }`}
-    ></div>
+      className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-md ${enabled ? "translate-x-7" : "translate-x-1"}`}
+    />
   </button>
 );
 
+const SKIN_TYPES = ["Normal", "Dry", "Oily", "Combination", "Sensitive"];
+const SKIN_CONCERNS = [
+  "Acne",
+  "Dark Spots",
+  "Hyperpigmentation",
+  "Dryness",
+  "Oiliness",
+  "Wrinkles",
+  "Sensitivity",
+  "Dullness",
+  "Large Pores",
+  "Dehydration",
+  "Uneven Texture",
+];
+
 export function SettingsPage() {
+  const { theme, toggle: toggleTheme, isDark } = useTheme();
+
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Settings states
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [smsReminders, setSmsReminders] = useState(false);
-  const [inAppAlerts, setInAppAlerts] = useState(true);
+  // Profile
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [skinType, setSkinType] = useState("Normal");
+  const [concerns, setConcerns] = useState([]);
+  const [memberSince, setMemberSince] = useState("");
+  const [totalAnalyses, setTotalAnalyses] = useState(0);
+
+  // Notifications
+  const [emailNotifs, setEmailNotifs] = useState(true);
+  const [pushNotifs, setPushNotifs] = useState(true);
+  const [routineReminders, setRoutineReminders] = useState(true);
+  const [weeklyReport, setWeeklyReport] = useState(true);
+  const [productUpdates, setProductUpdates] = useState(false);
+
+  // Privacy
   const [dataSharing, setDataSharing] = useState(false);
   const [imageStorage, setImageStorage] = useState(true);
+  const [analyticsOptIn, setAnalyticsOptIn] = useState(true);
 
-  const mockUser = {
-    name: "Ada Okafor",
-    email: "ada.okafor@email.com",
-    phone: "+234 812 345 6789",
-    skinType: "Combination",
-    concerns: ["Hyperpigmentation", "Dehydration"],
-    memberSince: "January 2025",
-    totalAnalyses: 12,
+  // Password
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState(null);
+
+  useEffect(() => {
+    const u = getUser();
+    if (u) {
+      setName(u.name || "");
+      setEmail(u.email || "");
+      setPhone(u.phone || "");
+      setSkinType(u.skinProfile?.skinType || "Normal");
+      setConcerns(u.skinProfile?.concerns || []);
+      setMemberSince(u.createdAt || "");
+      setEmailNotifs(u.notificationSettings?.emailNotifications ?? true);
+      setPushNotifs(u.notificationSettings?.pushNotifications ?? true);
+      setRoutineReminders(u.notificationSettings?.routineReminders ?? true);
+      setWeeklyReport(u.notificationSettings?.weeklyReport ?? true);
+      setProductUpdates(u.notificationSettings?.productUpdates ?? false);
+      setDataSharing(u.privacySettings?.dataSharing ?? false);
+      setImageStorage(u.privacySettings?.imageStorage ?? true);
+      setAnalyticsOptIn(u.privacySettings?.analyticsOptIn ?? true);
+    }
+    users
+      .getStats()
+      .then((d) => {
+        setTotalAnalyses(d.stats?.totalAnalyses || 0);
+        setMemberSince(d.stats?.memberSince || "");
+      })
+      .catch(() => {});
+    setLoading(false);
+  }, []);
+
+  const showSaved = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await users.updateProfile({ name, phone });
+      await users.updateSkinProfile({ skinType, concerns });
+      saveUser(res.user);
+      showSaved();
+    } catch (e) {
+      setError(e?.message || "Failed to save profile.");
+    }
+    setSaving(false);
+  };
+
+  const handleSaveNotifications = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await users.updateNotificationSettings({
+        emailNotifications: emailNotifs,
+        pushNotifications: pushNotifs,
+        routineReminders,
+        weeklyReport,
+        productUpdates,
+      });
+      saveUser(res.user);
+      showSaved();
+    } catch {
+      setError("Failed to save notification settings.");
+    }
+    setSaving(false);
+  };
+
+  const handleSavePrivacy = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await users.updatePrivacySettings({
+        dataSharing,
+        imageStorage,
+        analyticsOptIn,
+      });
+      saveUser(res.user);
+      showSaved();
+    } catch {
+      setError("Failed to save privacy settings.");
+    }
+    setSaving(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: "error", text: "Passwords do not match." });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordMsg({
+        type: "error",
+        text: "Password must be at least 8 characters.",
+      });
+      return;
+    }
+    setSaving(true);
+    setPasswordMsg(null);
+    try {
+      await users.changePassword(currentPassword, newPassword);
+      setPasswordMsg({
+        type: "success",
+        text: "Password changed successfully!",
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      setPasswordMsg({
+        type: "error",
+        text: e?.message || "Failed to change password.",
+      });
+    }
+    setSaving(false);
+  };
+
+  const handleExport = async () => {
+    try {
+      const data = await users.exportData();
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], {
+        type: "application/json",
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `dermai-data-${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+    } catch {
+      setError("Failed to export data.");
+    }
+  };
+
+  const toggleConcern = (c) =>
+    setConcerns((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+
+  const TABS = [
+    { key: "profile", icon: User, label: "Profile" },
+    { key: "appearance", icon: Sun, label: "Appearance" },
+    { key: "notifications", icon: Bell, label: "Notifications" },
+    { key: "privacy", icon: Shield, label: "Privacy & Security" },
+  ];
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#e8e6e3] via-[#f0ede8] to-[#f5f3ef]">
+    <div className="min-h-screen" style={{ background: "var(--bg-base)" }}>
       <ProfileUpdateModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
       <AuthNav
         currentPage="settings"
-        userName={mockUser.name.split(" ")[0]}
+        userName={name.split(" ")[0] || "User"}
         onUpdateProfile={() => setIsProfileModalOpen(true)}
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pt-24 sm:pt-28">
-        {/* Header with Profile Summary */}
-        <div className="mb-8">
-          <div className="bg-linear-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-4xl shadow-2xl p-6 sm:p-8 border border-[#e8e6e3]/30">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              {/* Avatar */}
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-linear-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center shadow-lg">
-                <UserCircle className="text-white" size={40} />
-              </div>
-
-              {/* User Info */}
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl text-[#2a2420] font-light">
-                    {mockUser.name}
-                  </h1>
-                  <span className="px-3 py-1 bg-linear-to-r from-[#8b7355]/10 to-[#6d5a43]/10 text-[#8b7355] rounded-full text-xs font-light flex items-center gap-1">
-                    <User size={12} />
-                    Member
-                  </span>
-                </div>
-                <p className="text-sm sm:text-base text-[#5a5450] mb-3 font-light flex items-center gap-2">
-                  <Mail size={16} />
-                  {mockUser.email}
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <span className="px-3 py-1 bg-white/60 backdrop-blur-sm rounded-full text-xs text-[#5a5450] border border-[#e8e6e3] font-light flex items-center gap-1">
-                    <Calendar size={12} />
-                    Member since {mockUser.memberSince}
-                  </span>
-                  <span className="px-3 py-1 bg-white/60 backdrop-blur-sm rounded-full text-xs text-[#5a5450] border border-[#e8e6e3] font-light flex items-center gap-1">
-                    <History size={12} />
-                    {mockUser.totalAnalyses} skin analyses
-                  </span>
-                  <span className="px-3 py-1 bg-white/60 backdrop-blur-sm rounded-full text-xs text-[#5a5450] border border-[#e8e6e3] font-light flex items-center gap-1">
-                    <Heart size={12} />
-                    {mockUser.skinType} skin
-                  </span>
-                </div>
-              </div>
-
-              {/* Quick Action */}
-              <button
-                onClick={() => setIsProfileModalOpen(true)}
-                className="px-6 py-3 bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-full hover:shadow-xl transition-all shadow-lg flex items-center gap-2 font-light"
-              >
-                <SettingsIcon size={18} />
-                Edit Profile
-              </button>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-24 sm:pt-28">
+        {/* Profile header card */}
+        <div
+          className="rounded-3xl shadow-xl p-6 sm:p-8 mb-6 border"
+          style={{
+            background: "var(--bg-surface)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg"
+              style={{
+                background: "linear-linear(135deg, #8b7355, #6d5a43)",
+                color: "var(--text-primary)",
+              }}
+            >
+              <UserCircle
+                style={{ color: "var(--text-primary)" }}
+                className="text-white"
+                size={36}
+              />
             </div>
+            <div className="flex-1">
+              <h1
+                className="text-2xl font-light"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {name || "Your Account"}
+              </h1>
+              <p
+                className="text-sm font-light flex items-center gap-1.5 mt-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <Mail size={13} />
+                {email}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {memberSince && (
+                  <span
+                    className="text-xs px-2.5 py-1 rounded-full font-light flex items-center gap-1 border"
+                    style={{
+                      background: "var(--bg-subtle)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    <Calendar size={11} /> Member since{" "}
+                    {new Date(memberSince).toLocaleDateString("en-NG", {
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
+                <span
+                  className="text-xs px-2.5 py-1 rounded-full font-light flex items-center gap-1 border"
+                  style={{
+                    background: "var(--bg-subtle)",
+                    borderColor: "var(--border)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <History size={11} />
+                  {totalAnalyses} analyses
+                </span>
+                {skinType && (
+                  <span
+                    className="text-xs px-2.5 py-1 rounded-full font-light flex items-center gap-1 border"
+                    style={{
+                      background: "var(--bg-subtle)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    <Heart size={11} />
+                    {skinType} skin
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="px-5 py-2.5 text-white rounded-full text-sm font-light flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style={{
+                background: "linear-linear(135deg, #8b7355, #6d5a43)",
+                color: "var(--text-primary)",
+              }}
+            >
+              <SettingsIcon size={16} /> Edit Profile
+            </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar Navigation */}
+          {/* Tab sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-linear-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-3xl shadow-xl p-3 sticky top-24 border border-[#e8e6e3]/30">
-              <nav className="space-y-2">
+            <div
+              className="rounded-3xl shadow-xl p-3 sticky top-24 border"
+              style={{
+                background: "var(--bg-surface)",
+                borderColor: "var(--border)",
+              }}
+            >
+              {TABS.map(({ key, icon: Icon, label }) => (
                 <button
-                  onClick={() => setActiveTab("profile")}
-                  className={`w-full px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-left font-light ${
-                    activeTab === "profile"
-                      ? "bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white shadow-lg"
-                      : "text-[#5a5450] hover:bg-white/80 hover:shadow-md"
-                  }`}
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className="w-full px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-left font-light mb-1 text-sm"
+                  style={
+                    activeTab === key
+                      ? {
+                          background: "linear-linear(135deg, #8b7355, #6d5a43)",
+                          color: "#fff",
+                        }
+                      : { color: "var(--text-secondary)" }
+                  }
                 >
-                  <User size={18} />
-                  <span className="text-sm">Profile</span>
+                  <Icon size={17} />
+                  {label}
                 </button>
-                <button
-                  onClick={() => setActiveTab("privacy")}
-                  className={`w-full px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-left font-light ${
-                    activeTab === "privacy"
-                      ? "bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white shadow-lg"
-                      : "text-[#5a5450] hover:bg-white/80 hover:shadow-md"
-                  }`}
-                >
-                  <Shield size={18} />
-                  <span className="text-sm">Privacy & Security</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab("notifications")}
-                  className={`w-full px-4 py-3.5 rounded-xl transition-all flex items-center gap-3 text-left font-light ${
-                    activeTab === "notifications"
-                      ? "bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white shadow-lg"
-                      : "text-[#5a5450] hover:bg-white/80 hover:shadow-md"
-                  }`}
-                >
-                  <Bell size={18} />
-                  <span className="text-sm">Notifications</span>
-                </button>
-              </nav>
+              ))}
             </div>
           </div>
 
-          {/* Main Content */}
+          {/* Content */}
           <div className="lg:col-span-3">
-            <div className="bg-linear-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-4xl shadow-2xl p-6 sm:p-8 border border-[#e8e6e3]/30">
-              {/* Profile Tab */}
+            <div
+              className="rounded-3xl shadow-xl p-6 sm:p-8 border"
+              style={{
+                background: "var(--bg-surface)",
+                borderColor: "var(--border)",
+              }}
+            >
+              {error && (
+                <div className="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600 font-light">
+                  <AlertCircle size={16} />
+                  {error}
+                </div>
+              )}
+              {saved && (
+                <div className="mb-5 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-sm text-emerald-700 font-light">
+                  <CheckCircle2 size={16} />
+                  Changes saved!
+                </div>
+              )}
+
+              {/* ── PROFILE TAB ─────────────────────────────────────────── */}
               {activeTab === "profile" && (
-                <div className="space-y-8">
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center">
-                        <User size={20} className="text-[#8b7355]" />
-                      </div>
-                      <div>
-                        <h2 className="text-2xl sm:text-3xl text-[#2a2420] font-light">
-                          Personal Information
-                        </h2>
-                        <p className="text-sm text-[#5a5450] font-light">
-                          Update your account details
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm text-[#2a2420] mb-2 font-light flex items-center gap-2">
-                          <User size={16} className="text-[#8b7355]" />
-                          Full Name
-                        </label>
-                        <input
-                          type="text"
-                          defaultValue={mockUser.name}
-                          className="w-full px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:bg-white focus:border-transparent transition-all font-light"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-[#2a2420] mb-2 font-light flex items-center gap-2">
-                          <Mail size={16} className="text-[#8b7355]" />
-                          Email Address
-                        </label>
-                        <input
-                          type="email"
-                          defaultValue={mockUser.email}
-                          className="w-full px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:bg-white focus:border-transparent transition-all font-light"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-[#2a2420] mb-2 font-light flex items-center gap-2">
-                          <Phone size={16} className="text-[#8b7355]" />
-                          Phone Number
-                        </label>
-                        <input
-                          type="tel"
-                          defaultValue={mockUser.phone}
-                          className="w-full px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:bg-white focus:border-transparent transition-all font-light"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-[#2a2420] mb-2 font-light flex items-center gap-2">
-                          <Heart size={16} className="text-[#8b7355]" />
-                          Skin Type
-                        </label>
-                        <select className="w-full px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:bg-white focus:border-transparent transition-all font-light">
-                          <option value="combination">Combination</option>
-                          <option value="dry">Dry</option>
-                          <option value="oily">Oily</option>
-                          <option value="sensitive">Sensitive</option>
-                          <option value="normal">Normal</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <label className="block text-sm text-[#2a2420] mb-3 font-light">
-                        Main Skin Concerns
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {mockUser.concerns.map((concern, i) => (
-                          <span
-                            key={i}
-                            className="px-4 py-2 bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-full text-sm flex items-center gap-2 shadow-md font-light"
+                <div className="space-y-6">
+                  <h2
+                    className="text-2xl font-light"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Personal Information
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {[
+                      {
+                        label: "Full Name",
+                        icon: User,
+                        value: name,
+                        onChange: setName,
+                        type: "text",
+                      },
+                      {
+                        label: "Email Address",
+                        icon: Mail,
+                        value: email,
+                        onChange: () => {},
+                        type: "email",
+                        disabled: true,
+                      },
+                      {
+                        label: "Phone Number",
+                        icon: Phone,
+                        value: phone,
+                        onChange: setPhone,
+                        type: "tel",
+                      },
+                    ].map(
+                      ({
+                        label,
+                        icon: Icon,
+                        value,
+                        onChange,
+                        type,
+                        disabled,
+                      }) => (
+                        <div key={label}>
+                          <label
+                            className="block text-sm font-light mb-2 flex items-center gap-1.5"
+                            style={{ color: "var(--text-primary)" }}
                           >
-                            <Sparkles size={14} />
-                            {concern}
-                            <button className="hover:bg-white/20 rounded-full p-0.5 transition-all">
-                              <X size={14} />
-                            </button>
-                          </span>
+                            <Icon size={14} style={{ color: "var(--brand)" }} />
+                            {label}
+                            {disabled && (
+                              <span className="text-xs opacity-50">
+                                (cannot change)
+                              </span>
+                            )}
+                          </label>
+                          <input
+                            type={type}
+                            value={value}
+                            onChange={(e) => onChange(e.target.value)}
+                            disabled={disabled}
+                            className="w-full px-4 py-3 rounded-xl border text-sm font-light focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            style={{
+                              background: "var(--bg-subtle)",
+                              borderColor: "var(--border)",
+                              color: "var(--text-primary)",
+                            }}
+                          />
+                        </div>
+                      ),
+                    )}
+                    <div>
+                      <label
+                        className="block text-sm font-light mb-2 flex items-center gap-1.5"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        <Heart size={14} style={{ color: "var(--brand)" }} />
+                        Skin Type
+                      </label>
+                      <select
+                        value={skinType}
+                        onChange={(e) => setSkinType(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border text-sm font-light focus:outline-none transition-colors"
+                        style={{
+                          background: "var(--bg-subtle)",
+                          borderColor: "var(--border)",
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        {SKIN_TYPES.map((t) => (
+                          <option key={t}>{t}</option>
                         ))}
-                        <button className="px-4 py-2 border-2 border-dashed border-[#8b7355] text-[#8b7355] rounded-full text-sm hover:bg-[#8b7355] hover:text-white transition-all font-light flex items-center gap-1">
-                          <Plus size={14} />
-                          Add Concern
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      className="block text-sm font-light mb-3"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Skin Concerns
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {SKIN_CONCERNS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleConcern(c)}
+                          className="px-3 py-1.5 rounded-full text-xs font-light border transition-all"
+                          style={
+                            concerns.includes(c)
+                              ? {
+                                  background: "var(--brand)",
+                                  color: "#fff",
+                                  borderColor: "var(--brand)",
+                                }
+                              : {
+                                  background: "var(--bg-subtle)",
+                                  color: "var(--text-secondary)",
+                                  borderColor: "var(--border)",
+                                }
+                          }
+                        >
+                          {c}
                         </button>
-                      </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Change Password Section */}
-                  <div className="pt-8 border-t border-[#e8e6e3]">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center">
-                        <Lock size={20} className="text-[#8b7355]" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl text-[#2a2420] font-light">
-                          Security
-                        </h3>
-                        <p className="text-sm text-[#5a5450] font-light">
-                          Update your password
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 max-w-2xl">
-                      <input
-                        type="password"
-                        placeholder="Current password"
-                        className="w-full px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:bg-white focus:border-transparent transition-all font-light placeholder:text-[#5a5450]/50"
-                      />
-                      <input
-                        type="password"
-                        placeholder="New password"
-                        className="w-full px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:bg-white focus:border-transparent transition-all font-light placeholder:text-[#5a5450]/50"
-                      />
-                      <input
-                        type="password"
-                        placeholder="Confirm new password"
-                        className="w-full px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:bg-white focus:border-transparent transition-all font-light placeholder:text-[#5a5450]/50"
-                      />
-                    </div>
-                  </div>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 text-white rounded-xl text-sm font-light hover:shadow-lg transition-all disabled:opacity-60"
+                    style={{
+                      background: "linear-linear(135deg, #8b7355, #6d5a43)",
+                    }}
+                  >
+                    {saving ? (
+                      <Loader size={14} className="animate-spin" />
+                    ) : (
+                      <Save size={14} />
+                    )}{" "}
+                    Save Changes
+                  </button>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6">
-                    <button className="px-8 py-3 bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-full hover:shadow-xl transition-all flex items-center justify-center gap-2 font-light">
-                      <CheckCircle2 size={18} />
-                      Save Changes
-                    </button>
-                    <button className="px-8 py-3 border-2 border-[#e8e6e3] text-[#5a5450] rounded-full hover:border-[#8b7355] hover:text-[#8b7355] transition-all font-light">
-                      Cancel
+                  {/* Change Password */}
+                  <div
+                    className="pt-6 border-t"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <h3
+                      className="text-lg font-light mb-4 flex items-center gap-2"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      <Lock size={18} style={{ color: "var(--brand)" }} />
+                      Change Password
+                    </h3>
+                    {passwordMsg && (
+                      <div
+                        className={`mb-4 flex items-center gap-2 p-3 rounded-xl text-sm font-light ${passwordMsg.type === "success" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-600"}`}
+                      >
+                        {passwordMsg.type === "success" ? (
+                          <CheckCircle2 size={15} />
+                        ) : (
+                          <AlertCircle size={15} />
+                        )}
+                        {passwordMsg.text}
+                      </div>
+                    )}
+                    <div className="space-y-3">
+                      {[
+                        {
+                          label: "Current Password",
+                          value: currentPassword,
+                          onChange: setCurrentPassword,
+                        },
+                        {
+                          label: "New Password",
+                          value: newPassword,
+                          onChange: setNewPassword,
+                        },
+                        {
+                          label: "Confirm Password",
+                          value: confirmPassword,
+                          onChange: setConfirmPassword,
+                        },
+                      ].map(({ label, value, onChange }) => (
+                        <div key={label}>
+                          <label
+                            className="block text-sm font-light mb-1.5"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {label}
+                          </label>
+                          <input
+                            type="password"
+                            value={value}
+                            onChange={(e) => onChange(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border text-sm font-light focus:outline-none transition-colors"
+                            style={{
+                              background: "var(--bg-subtle)",
+                              borderColor: "var(--border)",
+                              color: "var(--text-primary)",
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={saving || !currentPassword || !newPassword}
+                      className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-light transition-all disabled:opacity-40 border"
+                      style={{
+                        borderColor: "var(--brand)",
+                        color: "var(--brand)",
+                      }}
+                    >
+                      <Lock size={14} /> Update Password
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Privacy Tab */}
-              {activeTab === "privacy" && (
-                <div className="space-y-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center">
-                      <Shield size={20} className="text-[#8b7355]" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl sm:text-3xl text-[#2a2420] font-light">
-                        Privacy & Security
-                      </h2>
-                      <p className="text-sm text-[#5a5450] font-light">
-                        Control your data and privacy settings
-                      </p>
+              {/* ── APPEARANCE TAB ──────────────────────────────────────── */}
+              {activeTab === "appearance" && (
+                <div className="space-y-6">
+                  <h2
+                    className="text-2xl font-light"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Appearance
+                  </h2>
+                  <p
+                    className="text-sm font-light"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    Customise how DermAI looks on your device.
+                  </p>
+
+                  {/* Theme selector cards */}
+                  <div>
+                    <label
+                      className="block text-sm font-light mb-3"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Colour theme
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {[
+                        {
+                          id: "light",
+                          icon: Sun,
+                          label: "Light",
+                          desc: "Clean and bright",
+                          preview: {
+                            bg: "#faf9f7",
+                            card: "#ffffff",
+                            text: "#2a2420",
+                            accent: "#8b7355",
+                          },
+                        },
+                        {
+                          id: "dark",
+                          icon: Moon,
+                          label: "Dark",
+                          desc: "Easy on the eyes",
+                          preview: {
+                            bg: "#1a1714",
+                            card: "#231f1b",
+                            text: "#f0ede8",
+                            accent: "#c4a882",
+                          },
+                        },
+                        {
+                          id: "system",
+                          icon: Monitor,
+                          label: "System",
+                          desc: "Matches your device",
+                          preview: {
+                            bg: "linear-linear(135deg, #faf9f7 50%, #1a1714 50%)",
+                            card: "#8b7355",
+                            text: "#fff",
+                            accent: "#fff",
+                          },
+                        },
+                      ].map(({ id, icon: Icon, label, desc, preview }) => {
+                        const isActive =
+                          id === "system"
+                            ? false // we don't track "system" separately, just show it
+                            : theme === id;
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => {
+                              if (id === "system") {
+                                const sysDark = window.matchMedia(
+                                  "(prefers-color-scheme: dark)",
+                                ).matches;
+                                if (sysDark && !isDark) toggleTheme();
+                                if (!sysDark && isDark) toggleTheme();
+                              } else if (id !== theme) {
+                                toggleTheme();
+                              }
+                            }}
+                            className="relative rounded-2xl p-4 border-2 text-left transition-all hover:scale-[1.02]"
+                            style={{
+                              borderColor: isActive
+                                ? "var(--brand)"
+                                : "var(--border)",
+                              background: "var(--bg-subtle)",
+                            }}
+                          >
+                            {isActive && (
+                              <span
+                                className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center"
+                                style={{ background: "var(--brand)" }}
+                              >
+                                <CheckCircle2
+                                  size={12}
+                                  className="text-white"
+                                />
+                              </span>
+                            )}
+                            {/* Mini preview */}
+                            <div
+                              className="w-full h-12 rounded-xl mb-3 overflow-hidden flex gap-1 p-1.5"
+                              style={{
+                                background:
+                                  id === "system" ? undefined : preview.bg,
+                                backgroundImage:
+                                  id === "system" ? preview.bg : undefined,
+                              }}
+                            >
+                              <div
+                                className="flex-1 rounded-lg"
+                                style={{
+                                  background:
+                                    id === "system"
+                                      ? "rgba(255,255,255,0.3)"
+                                      : preview.card,
+                                }}
+                              />
+                              <div
+                                className="w-1/3 rounded-lg"
+                                style={{
+                                  background:
+                                    id === "system"
+                                      ? "rgba(0,0,0,0.3)"
+                                      : preview.accent,
+                                  opacity: 0.7,
+                                }}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Icon
+                                size={15}
+                                style={{ color: "var(--brand)" }}
+                              />
+                              <div>
+                                <p
+                                  className="text-sm font-light"
+                                  style={{ color: "var(--text-primary)" }}
+                                >
+                                  {label}
+                                </p>
+                                <p
+                                  className="text-xs font-light"
+                                  style={{ color: "var(--text-muted)" }}
+                                >
+                                  {desc}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
+                  {/* Quick toggle */}
+                  <div
+                    className="flex items-center justify-between p-4 rounded-2xl border"
+                    style={{
+                      background: "var(--bg-subtle)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isDark ? (
+                        <Moon size={18} className="text-indigo-400" />
+                      ) : (
+                        <Sun size={18} className="text-amber-400" />
+                      )}
+                      <div>
+                        <p
+                          className="text-sm font-light"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {isDark ? "Dark mode is on" : "Light mode is on"}
+                        </p>
+                        <p
+                          className="text-xs font-light"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Tap to switch to {isDark ? "light" : "dark"} mode
+                        </p>
+                      </div>
+                    </div>
+                    <ToggleSwitch enabled={isDark} onChange={toggleTheme} />
+                  </div>
+
+                  <p
+                    className="text-xs font-light"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    Your preference is saved locally on this device.
+                  </p>
+                </div>
+              )}
+
+              {/* ── NOTIFICATIONS TAB ───────────────────────────────────── */}
+              {activeTab === "notifications" && (
+                <div className="space-y-6">
+                  <h2
+                    className="text-2xl font-light"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Notification Preferences
+                  </h2>
                   <div className="space-y-4">
-                    {/* Data Sharing Toggle */}
-                    <div className="bg-white/60 rounded-2xl p-5 border border-[#e8e6e3] hover:shadow-lg transition-all">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-base text-[#2a2420] mb-1 font-light flex items-center gap-2">
-                            Data Sharing
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-light">
-                              Optional
-                            </span>
-                          </h3>
-                          <p className="text-sm text-[#5a5450] font-light">
-                            Allow anonymous data sharing to help improve our AI
-                            recommendations for all users
+                    {[
+                      {
+                        label: "Email Notifications",
+                        sub: "Analysis results and weekly reports",
+                        value: emailNotifs,
+                        onChange: () => setEmailNotifs(!emailNotifs),
+                      },
+                      {
+                        label: "Push Notifications",
+                        sub: "In-app alerts and reminders",
+                        value: pushNotifs,
+                        onChange: () => setPushNotifs(!pushNotifs),
+                      },
+                      {
+                        label: "Routine Reminders",
+                        sub: "Daily AM/PM routine reminders",
+                        value: routineReminders,
+                        onChange: () => setRoutineReminders(!routineReminders),
+                      },
+                      {
+                        label: "Weekly Report",
+                        sub: "Weekly skin score and progress summary",
+                        value: weeklyReport,
+                        onChange: () => setWeeklyReport(!weeklyReport),
+                      },
+                      {
+                        label: "Product Updates",
+                        sub: "New products matching your skin profile",
+                        value: productUpdates,
+                        onChange: () => setProductUpdates(!productUpdates),
+                      },
+                    ].map(({ label, sub, value, onChange }) => (
+                      <div
+                        key={label}
+                        className="flex items-center justify-between p-4 rounded-2xl"
+                        style={{ background: "var(--bg-subtle)" }}
+                      >
+                        <div>
+                          <p
+                            className="text-sm font-light"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {label}
+                          </p>
+                          <p
+                            className="text-xs font-light mt-0.5"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {sub}
                           </p>
                         </div>
-                        <ToggleSwitch
-                          enabled={dataSharing}
-                          onChange={() => setDataSharing(!dataSharing)}
-                        />
+                        <ToggleSwitch enabled={value} onChange={onChange} />
                       </div>
-                    </div>
-
-                    {/* Image Storage Toggle */}
-                    <div className="bg-white/60 rounded-2xl p-5 border border-[#e8e6e3] hover:shadow-lg transition-all">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-base text-[#2a2420] mb-1 font-light flex items-center gap-2">
-                            Image Storage
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-light">
-                              Recommended
-                            </span>
-                          </h3>
-                          <p className="text-sm text-[#5a5450] font-light">
-                            Store your skin analysis photos securely for
-                            progress tracking and comparison
-                          </p>
-                        </div>
-                        <ToggleSwitch
-                          enabled={imageStorage}
-                          onChange={() => setImageStorage(!imageStorage)}
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </div>
+                  <button
+                    onClick={handleSaveNotifications}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 text-white rounded-xl text-sm font-light hover:shadow-lg transition-all disabled:opacity-60"
+                    style={{
+                      background: "linear-linear(135deg, #8b7355, #6d5a43)",
+                    }}
+                  >
+                    {saving ? (
+                      <Loader size={14} className="animate-spin" />
+                    ) : (
+                      <Save size={14} />
+                    )}{" "}
+                    Save Preferences
+                  </button>
+                </div>
+              )}
 
-                  {/* Data Management */}
-                  <div className="pt-8 border-t border-[#e8e6e3]">
-                    <h3 className="text-xl text-[#2a2420] mb-4 font-light">
+              {/* ── PRIVACY TAB ─────────────────────────────────────────── */}
+              {activeTab === "privacy" && (
+                <div className="space-y-6">
+                  <h2
+                    className="text-2xl font-light"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    Privacy & Security
+                  </h2>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        label: "Data Sharing",
+                        sub: "Share anonymised skin data to improve AI",
+                        value: dataSharing,
+                        onChange: () => setDataSharing(!dataSharing),
+                      },
+                      {
+                        label: "Image Storage",
+                        sub: "Store uploaded skin photos on secure servers",
+                        value: imageStorage,
+                        onChange: () => setImageStorage(!imageStorage),
+                      },
+                      {
+                        label: "Analytics",
+                        sub: "Help us improve the app with usage analytics",
+                        value: analyticsOptIn,
+                        onChange: () => setAnalyticsOptIn(!analyticsOptIn),
+                      },
+                    ].map(({ label, sub, value, onChange }) => (
+                      <div
+                        key={label}
+                        className="flex items-center justify-between p-4 rounded-2xl"
+                        style={{ background: "var(--bg-subtle)" }}
+                      >
+                        <div>
+                          <p
+                            className="text-sm font-light"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {label}
+                          </p>
+                          <p
+                            className="text-xs font-light mt-0.5"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {sub}
+                          </p>
+                        </div>
+                        <ToggleSwitch enabled={value} onChange={onChange} />
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSavePrivacy}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 text-white rounded-xl text-sm font-light hover:shadow-lg transition-all disabled:opacity-60"
+                    style={{
+                      background: "linear-linear(135deg, #8b7355, #6d5a43)",
+                    }}
+                  >
+                    {saving ? (
+                      <Loader size={14} className="animate-spin" />
+                    ) : (
+                      <Save size={14} />
+                    )}{" "}
+                    Save Privacy Settings
+                  </button>
+
+                  <div
+                    className="pt-6 border-t space-y-3"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <h3
+                      className="text-base font-light"
+                      style={{ color: "var(--text-primary)" }}
+                    >
                       Data Management
                     </h3>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button className="px-6 py-3 border-2 border-[#8b7355] text-[#8b7355] rounded-full hover:bg-linear-to-r hover:from-[#8b7355] hover:to-[#6d5a43] hover:text-white transition-all flex items-center justify-center gap-2 font-light">
-                        <Download size={18} />
-                        Download My Data
-                      </button>
-                      <button className="px-6 py-3 border-2 border-red-500 text-red-600 rounded-full hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2 font-light">
-                        <Trash2 size={18} />
-                        Delete Account
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Warning Note */}
-                  <div className="p-5 bg-linear-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-2xl flex gap-3">
-                    <AlertCircle
-                      size={20}
-                      className="text-yellow-700 shrink-0 mt-0.5"
-                    />
-                    <div>
-                      <p className="text-sm text-yellow-800 font-light">
-                        <strong className="font-normal">Important:</strong>{" "}
-                        Deleting your account will permanently remove all your
-                        data, including skin analyses, routines, product
-                        recommendations, and preferences. This action cannot be
-                        undone.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Notifications Tab */}
-              {activeTab === "notifications" && (
-                <div className="space-y-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-[#8b7355]/10 to-[#6d5a43]/10 flex items-center justify-center">
-                      <Bell size={20} className="text-[#8b7355]" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl sm:text-3xl text-[#2a2420] font-light">
-                        Notification Preferences
-                      </h2>
-                      <p className="text-sm text-[#5a5450] font-light">
-                        Choose how you want to stay informed
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Email Notifications */}
-                    <div className="bg-white/60 rounded-2xl p-5 border border-[#e8e6e3] hover:shadow-lg transition-all">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-base text-[#2a2420] mb-1 font-light flex items-center gap-2">
-                            <Mail size={16} className="text-[#8b7355]" />
-                            Email Notifications
-                          </h3>
-                          <p className="text-sm text-[#5a5450] font-light">
-                            Receive product recommendations, skincare tips, and
-                            important updates via email
-                          </p>
-                        </div>
-                        <ToggleSwitch
-                          enabled={emailNotifications}
-                          onChange={() =>
-                            setEmailNotifications(!emailNotifications)
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    {/* SMS Reminders */}
-                    <div className="bg-white/60 rounded-2xl p-5 border border-[#e8e6e3] hover:shadow-lg transition-all">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-base text-[#2a2420] mb-1 font-light flex items-center gap-2">
-                            <Phone size={16} className="text-[#8b7355]" />
-                            SMS Reminders
-                          </h3>
-                          <p className="text-sm text-[#5a5450] font-light">
-                            Get text message reminders for your morning and
-                            evening skincare routines
-                          </p>
-                        </div>
-                        <ToggleSwitch
-                          enabled={smsReminders}
-                          onChange={() => setSmsReminders(!smsReminders)}
-                        />
-                      </div>
-                    </div>
-
-                    {/* In-App Alerts */}
-                    <div className="bg-white/60 rounded-2xl p-5 border border-[#e8e6e3] hover:shadow-lg transition-all">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-base text-[#2a2420] mb-1 font-light flex items-center gap-2">
-                            <Bell size={16} className="text-[#8b7355]" />
-                            In-App Alerts
-                          </h3>
-                          <p className="text-sm text-[#5a5450] font-light">
-                            Show notifications and alerts within the DermAI
-                            application
-                          </p>
-                        </div>
-                        <ToggleSwitch
-                          enabled={inAppAlerts}
-                          onChange={() => setInAppAlerts(!inAppAlerts)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notification Schedule */}
-                  <div className="pt-8 border-t border-[#e8e6e3]">
-                    <h3 className="text-xl text-[#2a2420] mb-4 font-light">
-                      Routine Reminders
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-white/60 rounded-xl p-4 border border-[#e8e6e3]">
-                        <label className="block text-sm text-[#2a2420] mb-2 font-light flex items-center gap-2">
-                          <Sparkles size={16} className="text-[#8b7355]" />
-                          Morning Routine
-                        </label>
-                        <input
-                          type="time"
-                          defaultValue="08:00"
-                          className="w-full px-3 py-2 bg-white rounded-lg border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-transparent font-light"
-                        />
-                      </div>
-                      <div className="bg-white/60 rounded-xl p-4 border border-[#e8e6e3]">
-                        <label className="block text-sm text-[#2a2420] mb-2 font-light flex items-center gap-2">
-                          <Sparkles size={16} className="text-[#8b7355]" />
-                          Evening Routine
-                        </label>
-                        <input
-                          type="time"
-                          defaultValue="21:00"
-                          className="w-full px-3 py-2 bg-white rounded-lg border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-transparent font-light"
-                        />
-                      </div>
-                    </div>
+                    <button
+                      onClick={handleExport}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-light transition-all border"
+                      style={{
+                        borderColor: "var(--border)",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      <Download size={15} /> Export My Data
+                    </button>
+                    <p
+                      className="text-xs font-light"
+                      style={{ color: "var(--text-faint)" }}
+                    >
+                      Downloads all your profile, analyses and routine history
+                      as JSON.
+                    </p>
                   </div>
                 </div>
               )}

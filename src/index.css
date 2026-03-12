@@ -1,1 +1,259 @@
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DERMAI THEME SYSTEM — Tailwind v4
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens ──────────────────────────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  --bg-base: #faf9f7;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f5f3ef;
+  --bg-muted: #f0ede8;
+  --bg-hover: #ede9e3;
+  --border: #e8e6e3;
+  --text-primary: #2a2420;
+  --text-secondary: #5a5450;
+  --text-muted: #8b7355;
+  --text-faint: #b0a898;
+  --brand: #8b7355;
+  --brand-dark: #6d5a43;
+}
+
+[data-theme="dark"] {
+  --bg-base: #1a1714;
+  --bg-surface: #231f1b;
+  --bg-subtle: #2a2520;
+  --bg-muted: #332d27;
+  --bg-hover: #3d362e;
+  --border: #3d362e;
+  --text-primary: #f0ede8;
+  --text-secondary: #c4b89a;
+  --text-muted: #8b7355;
+  --text-faint: #5a5450;
+  --brand: #c4a882;
+  --brand-dark: #8b7355;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+html {
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK OVERRIDES — highest specificity block, runs after Tailwind utilities
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer utilities {
+  /* White / near-white backgrounds → dark surfaces */
+  [data-theme="dark"] .bg-white {
+    background-color: var(--bg-surface) !important;
+  }
+  [data-theme="dark"] .bg-white\/90 {
+    background-color: var(--bg-surface) !important;
+  }
+  [data-theme="dark"] .bg-white\/95 {
+    background-color: var(--bg-surface) !important;
+  }
+
+  /* Named hex cards & subtle areas */
+  [data-theme="dark"] .bg-\[\#faf9f7\] {
+    background-color: var(--bg-base) !important;
+  }
+  [data-theme="dark"] .bg-\[\#fafaf9\] {
+    background-color: var(--bg-surface) !important;
+  }
+  [data-theme="dark"] .bg-\[\#fdf9f5\] {
+    background-color: var(--bg-subtle) !important;
+  }
+  [data-theme="dark"] .bg-\[\#f8f6f3\] {
+    background-color: var(--bg-subtle) !important;
+  }
+  [data-theme="dark"] .bg-\[\#f5f3ef\] {
+    background-color: var(--bg-subtle) !important;
+  }
+  [data-theme="dark"] .bg-\[\#f0ede8\] {
+    background-color: var(--bg-muted) !important;
+  }
+  [data-theme="dark"] .bg-\[\#e8e6e3\] {
+    background-color: var(--bg-muted) !important;
+  }
+
+  /* Selected / active state dark backgrounds on light theme → invert */
+  [data-theme="dark"] .bg-\[\#2a2420\] {
+    background-color: var(--bg-hover) !important;
+  }
+
+  /* Hover variants */
+  [data-theme="dark"] .hover\:bg-\[\#f8f6f3\]:hover {
+    background-color: var(--bg-hover) !important;
+  }
+  [data-theme="dark"] .hover\:bg-\[\#e8e6e3\]:hover {
+    background-color: var(--bg-hover) !important;
+  }
+  [data-theme="dark"] .hover\:bg-\[\#f5f3ef\]:hover {
+    background-color: var(--bg-hover) !important;
+  }
+
+  /* Full page gradient wrappers */
+  [data-theme="dark"] .from-\[\#e8e6e3\] {
+    --tw-gradient-from: var(--bg-base) !important;
+  }
+  [data-theme="dark"] .via-\[\#f0ede8\] {
+    --tw-gradient-via: var(--bg-base) !important;
+  }
+  [data-theme="dark"] .to-\[\#f5f3ef\] {
+    --tw-gradient-to: var(--bg-base) !important;
+  }
+
+  /* Borders */
+  [data-theme="dark"] .border-\[\#e8e6e3\] {
+    border-color: var(--border) !important;
+  }
+  [data-theme="dark"] .border-\[\#e8e6e3\]\/30 {
+    border-color: var(--border) !important;
+  }
+  [data-theme="dark"] .border-\[\#e8e6e3\]\/60 {
+    border-color: var(--border) !important;
+  }
+  [data-theme="dark"] .divide-\[\#e8e6e3\] > * + * {
+    border-color: var(--border) !important;
+  }
+
+  /* Text */
+  [data-theme="dark"] .text-\[\#2a2420\] {
+    color: var(--text-primary) !important;
+  }
+  [data-theme="dark"] .text-\[\#5a5450\] {
+    color: var(--text-secondary) !important;
+  }
+  [data-theme="dark"] .text-\[\#8b7355\] {
+    color: var(--brand) !important;
+  }
+  [data-theme="dark"] .text-\[\#b0a898\] {
+    color: var(--text-faint) !important;
+  }
+  [data-theme="dark"] .text-\[\#6d5a43\] {
+    color: var(--brand) !important;
+  }
+
+  /* Status tints */
+  [data-theme="dark"] .bg-amber-50 {
+    background-color: rgba(120, 90, 40, 0.18) !important;
+  }
+  [data-theme="dark"] .bg-amber-100\/50 {
+    background-color: rgba(120, 90, 40, 0.12) !important;
+  }
+  [data-theme="dark"] .border-amber-200 {
+    border-color: rgba(180, 130, 60, 0.3) !important;
+  }
+  [data-theme="dark"] .bg-emerald-50 {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+  }
+  [data-theme="dark"] .border-emerald-200 {
+    border-color: rgba(16, 185, 129, 0.25) !important;
+  }
+  [data-theme="dark"] .text-emerald-700 {
+    color: #6ee7b7 !important;
+  }
+  [data-theme="dark"] .bg-red-50 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+  }
+  [data-theme="dark"] .border-red-200 {
+    border-color: rgba(239, 68, 68, 0.25) !important;
+  }
+}
+
+/* ── Inputs / form elements (outside @layer for native specificity) ───────── */
+[data-theme="dark"]
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: var(--bg-subtle) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-faint) !important;
+  opacity: 1;
+}
+[data-theme="dark"] option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* ── Recharts tooltip ────────────────────────────────────────────────────── */
+[data-theme="dark"] .recharts-default-tooltip {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] .recharts-tooltip-label,
+[data-theme="dark"] .recharts-tooltip-item {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .recharts-cartesian-grid-horizontal line,
+[data-theme="dark"] .recharts-cartesian-grid-vertical line {
+  stroke: var(--border) !important;
+}
+[data-theme="dark"] .recharts-text {
+  fill: var(--text-secondary) !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-muted);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--brand);
+  border-radius: 99px;
+}
+
+/* ── Animation ────────────────────────────────────────────────────────────── */
+@keyframes animate-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: animate-fade-in 0.2s ease forwards;
+}
+
+/* ── Smooth theme transitions on bg/border/color only ────────────────────── */
+*,
+*::before,
+*::after {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.15s ease;
+}
+/* Exclude things that shouldn't transition */
+svg,
+svg *,
+path,
+line,
+circle,
+rect,
+polyline,
+.animate-spin,
+.animate-pulse,
+.animate-bounce {
+  transition: none !important;
+}

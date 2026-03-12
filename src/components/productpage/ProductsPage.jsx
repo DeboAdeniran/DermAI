@@ -1,762 +1,899 @@
-import React, { useState } from "react";
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-empty */
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthNav } from "../ui/AuthNav";
 import { ProfileUpdateModal } from "../dashboard/ProfileUpdateModal";
 import {
   Search,
-  Filter,
   Star,
   Heart,
-  ShoppingCart,
   X,
-  CheckCircle,
-  Sparkles,
-  TrendingUp,
-  Package,
-  Check,
-  Percent,
-  Tag,
-  Thermometer,
-  Zap,
-  Droplets,
-  Shield,
   AlertCircle,
+  Package,
+  ExternalLink,
+  Loader,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
   ShoppingBag,
+  Droplets,
+  Leaf,
+  CheckCircle,
+  Info,
+  Plus,
+  Sun,
+  Moon,
+  ChevronDown,
 } from "lucide-react";
+import {
+  products as productsApi,
+  routines as routinesApi,
+  getUser,
+} from "../../services/api";
 
-// Mock user data
-const mockUser = { name: "Ada" };
-
-// Mock products data
-const allProducts = [
-  {
-    id: 1,
-    name: "Hydrating Facial Cleanser",
-    brand: "CeraVe",
-    price: 8500,
-    image: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=300",
-    category: "Cleanser",
-    skinTypes: ["Dry", "Normal", "Combination"],
-    concerns: ["Dehydration", "Sensitivity"],
-    matchScore: 98,
-    inStock: true,
-    rating: 4.8,
-    reviews: 1234,
-    ingredients: ["Hyaluronic Acid", "Ceramides", "Glycerin"],
-  },
-  {
-    id: 2,
-    name: "Niacinamide 10% + Zinc 1%",
-    brand: "The Ordinary",
-    price: 6200,
-    image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300",
-    category: "Treatment",
-    skinTypes: ["Oily", "Combination"],
-    concerns: ["Hyperpigmentation", "Large Pores", "Oiliness"],
-    matchScore: 96,
-    inStock: true,
-    rating: 4.7,
-    reviews: 2156,
-    ingredients: ["Niacinamide", "Zinc PCA"],
-  },
-  {
-    id: 3,
-    name: "Hydro Boost Water Gel",
-    brand: "Neutrogena",
-    price: 12000,
-    image: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=300",
-    category: "Moisturizer",
-    skinTypes: ["All Types"],
-    concerns: ["Dehydration", "Oiliness"],
-    matchScore: 94,
-    inStock: true,
-    rating: 4.6,
-    reviews: 987,
-    ingredients: ["Hyaluronic Acid", "Olive Extract"],
-  },
-  {
-    id: 4,
-    name: "Anthelios Sunscreen SPF 50+",
-    brand: "La Roche-Posay",
-    price: 15500,
-    image: "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=300",
-    category: "Sunscreen",
-    skinTypes: ["All Types"],
-    concerns: ["Hyperpigmentation", "Sun Protection"],
-    matchScore: 92,
-    inStock: true,
-    rating: 4.9,
-    reviews: 1543,
-    ingredients: ["Mexoryl XL", "Vitamin E"],
-  },
-  {
-    id: 5,
-    name: "2% BHA Liquid Exfoliant",
-    brand: "Paula's Choice",
-    price: 18000,
-    image: "https://images.unsplash.com/photo-1612817288484-6f916006741a?w=300",
-    category: "Treatment",
-    skinTypes: ["Oily", "Combination"],
-    concerns: ["Acne", "Uneven Texture", "Large Pores"],
-    matchScore: 90,
-    inStock: false,
-    rating: 4.8,
-    reviews: 2341,
-    ingredients: ["Salicylic Acid", "Green Tea Extract"],
-  },
-  {
-    id: 6,
-    name: "Kind to Skin Refreshing Facial Wash",
-    brand: "Simple",
-    price: 3500,
-    image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=300",
-    category: "Cleanser",
-    skinTypes: ["Sensitive", "Normal"],
-    concerns: ["Sensitivity"],
-    matchScore: 85,
-    inStock: true,
-    rating: 4.5,
-    reviews: 567,
-    ingredients: ["Vitamin B5", "Bisabolol"],
-  },
-];
-
-// Available categories, skin types, and concerns for filters
-const availableCategories = [
+const CATEGORIES = [
   "Cleanser",
+  "Toner",
+  "Serum",
   "Treatment",
   "Moisturizer",
   "Sunscreen",
+  "Eye Cream",
+  "Mask",
+  "Exfoliant",
+  "Oil",
+  "Mist",
+  "Other",
 ];
-const availableSkinTypes = [
+const SKIN_TYPES = [
   "Dry",
   "Oily",
   "Combination",
   "Sensitive",
   "Normal",
+  "All Types",
 ];
-const availableConcerns = [
-  "Acne",
-  "Hyperpigmentation",
-  "Dehydration",
-  "Sensitivity",
-  "Large Pores",
+const SORT_OPTIONS = [
+  { value: "match", label: "Best Match" },
+  { value: "price-low", label: "Price: Low → High" },
+  { value: "price-high", label: "Price: High → Low" },
+  { value: "rating", label: "Top Rated" },
+  { value: "newest", label: "Newest" },
 ];
 
-export function ProductsPage() {
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+const STEP_TYPES = [
+  "Cleanser",
+  "Toner",
+  "Serum",
+  "Treatment",
+  "Moisturizer",
+  "Sunscreen",
+  "Eye Cream",
+  "Mask",
+  "Exfoliant",
+  "Oil",
+  "Other",
+];
 
-  // Filter states
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [selectedSkinTypes, setSelectedSkinTypes] = useState([]);
-  const [selectedConcerns, setSelectedConcerns] = useState([]);
-  const [priceRange, setPriceRange] = useState([0, 50000]);
-  const [searchIngredient, setSearchIngredient] = useState("");
-  const [inStockOnly, setInStockOnly] = useState(false);
-  const [sortBy, setSortBy] = useState("match");
+const PLATFORM_COLORS = {
+  Jumia: "bg-orange-500",
+  Konga: "bg-red-600",
+  "Nectar Beauty Hub": "bg-pink-500",
+  "TOS Nigeria": "bg-slate-700",
+  "Skin Pop Essentiel": "bg-purple-500",
+  "Allure Beauty": "bg-yellow-600",
+  HealthPlus: "bg-blue-600",
+  SPAR: "bg-green-700",
+  "Rhema Beauty Shop": "bg-rose-500",
+  "Skin Gourmet": "bg-teal-600",
+  Beautyberry: "bg-fuchsia-500",
+  Minimed: "bg-cyan-600",
+};
 
-  const filterProducts = () => {
-    let products = allProducts.filter((product) => {
-      // Search by name or brand
-      if (
-        searchQuery &&
-        !product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !product.brand.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
-      }
+// ─── Product Detail Modal ─────────────────────────────────────────────────────
+function ProductModal({ product, onClose, onSave }) {
+  const [saving, setSaving] = useState(false);
+  const [addingToRoutine, setAddingToRoutine] = useState(false);
+  const [routineSuccess, setRoutineSuccess] = useState("");
+  const [routineError, setRoutineError] = useState("");
+  const [period, setPeriod] = useState("am");
+  const [stepType, setStepType] = useState("Moisturizer");
+  const [showRoutineForm, setShowRoutineForm] = useState(false);
 
-      // Category filter
-      if (
-        selectedCategories.length > 0 &&
-        !selectedCategories.includes(product.category)
-      ) {
-        return false;
-      }
+  if (!product) return null;
 
-      // Skin type filter
-      if (
-        selectedSkinTypes.length > 0 &&
-        !product.skinTypes.some((type) => selectedSkinTypes.includes(type))
-      ) {
-        return false;
-      }
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(product._id);
+    setSaving(false);
+  };
 
-      // Concerns filter
-      if (
-        selectedConcerns.length > 0 &&
-        !product.concerns.some((concern) => selectedConcerns.includes(concern))
-      ) {
-        return false;
-      }
-
-      // Price range filter
-      if (product.price < priceRange[0] || product.price > priceRange[1]) {
-        return false;
-      }
-
-      // In stock filter
-      if (inStockOnly && !product.inStock) {
-        return false;
-      }
-
-      // Ingredient search
-      if (
-        searchIngredient &&
-        !product.ingredients.some((ing) =>
-          ing.toLowerCase().includes(searchIngredient.toLowerCase()),
-        )
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-
-    // Sort products
-    if (sortBy === "match") {
-      products = products.sort(
-        (a, b) => (b.matchScore || 0) - (a.matchScore || 0),
+  const handleAddToRoutine = async () => {
+    setAddingToRoutine(true);
+    setRoutineError("");
+    setRoutineSuccess("");
+    try {
+      await routinesApi.addProduct({
+        productId: product._id,
+        period,
+        stepType,
+      });
+      setRoutineSuccess(
+        `Added to your ${period.toUpperCase()} routine as a ${stepType} step! ✓`,
       );
-    } else if (sortBy === "price-low") {
-      products = products.sort((a, b) => a.price - b.price);
-    } else if (sortBy === "price-high") {
-      products = products.sort((a, b) => b.price - a.price);
-    } else if (sortBy === "rating") {
-      products = products.sort((a, b) => b.rating - a.rating);
-    }
-
-    return products;
-  };
-
-  const filteredProducts = filterProducts();
-
-  const toggleFilter = (filterArray, setFilterArray, value) => {
-    if (filterArray.includes(value)) {
-      setFilterArray(filterArray.filter((item) => item !== value));
-    } else {
-      setFilterArray([...filterArray, value]);
+      setShowRoutineForm(false);
+    } catch (err) {
+      setRoutineError("Could not add to routine. Please try again.");
+    } finally {
+      setAddingToRoutine(false);
     }
   };
 
-  const clearAllFilters = () => {
-    setSelectedCategories([]);
-    setSelectedSkinTypes([]);
-    setSelectedConcerns([]);
-    setPriceRange([0, 50000]);
-    setSearchIngredient("");
-    setInStockOnly(false);
-    setSearchQuery("");
-  };
-
-  const activeFiltersCount =
-    selectedCategories.length +
-    selectedSkinTypes.length +
-    selectedConcerns.length +
-    (inStockOnly ? 1 : 0) +
-    (searchIngredient ? 1 : 0);
-
-  // Helper function to get concern icon
-  const getConcernIcon = (concern) => {
-    switch (concern.toLowerCase()) {
-      case "acne":
-        return <AlertCircle size={14} />;
-      case "dehydration":
-        return <Droplets size={14} />;
-      case "sensitivity":
-        return <Thermometer size={14} />;
-      case "sun protection":
-        return <Shield size={14} />;
-      default:
-        return <Zap size={14} />;
+  // Build deduplicated buy links: prefer purchaseLinks array; fall back to legacy jumiaUrl
+  const buyLinks = (() => {
+    const links = (product.purchaseLinks || []).map((l) => ({
+      platform: l.platform || l.store || "Store",
+      url: l.url,
+      price: l.price,
+      sellerName: l.sellerName,
+    }));
+    // Add legacy jumiaUrl only if not already in purchaseLinks
+    if (product.jumiaUrl && !links.some((l) => l.url === product.jumiaUrl)) {
+      links.unshift({
+        platform: "Jumia",
+        url: product.jumiaUrl,
+        price: product.price,
+      });
     }
+    return links;
+  })();
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header image */}
+        <div className="relative h-56 bg-[#f8f6f3] rounded-t-3xl overflow-hidden">
+          {product.image ? (
+            <img
+              src={product.image}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Package size={48} className="text-[#8b7355]/20" />
+            </div>
+          )}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all"
+          >
+            <X size={18} className="text-[#2a2420]" />
+          </button>
+          {product.isLocalBrand && (
+            <span className="absolute top-4 left-4 text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-light">
+              🇳🇬 Local Brand
+            </span>
+          )}
+          {!product.inStock && (
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs text-center py-1.5 font-light">
+              Out of Stock
+            </div>
+          )}
+        </div>
+
+        <div className="p-6">
+          {/* Name + Save */}
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <p className="text-sm text-[#8b7355] font-light mb-0.5">
+                {product.brand}
+              </p>
+              <h2 className="text-xl text-[#2a2420] font-light leading-snug">
+                {product.name}
+              </h2>
+            </div>
+            <button
+              onClick={handleSave}
+              className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-all ${product.isSaved ? "bg-rose-500 border-rose-500 text-white" : "border-[#e8e6e3] text-[#8b7355] hover:border-rose-300"}`}
+            >
+              {saving ? (
+                <Loader size={16} className="animate-spin" />
+              ) : (
+                <Heart
+                  size={16}
+                  fill={product.isSaved ? "currentColor" : "none"}
+                />
+              )}
+            </button>
+          </div>
+
+          {/* Rating + Price */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    size={14}
+                    className={
+                      s <= Math.round(product.rating || 0)
+                        ? "text-amber-400 fill-amber-400"
+                        : "text-gray-200 fill-gray-200"
+                    }
+                  />
+                ))}
+              </div>
+              <span className="text-sm text-[#5a5450] font-light">
+                {product.rating?.toFixed(1) || "—"}
+              </span>
+              {product.reviewCount > 0 && (
+                <span className="text-xs text-[#8b7355]/50 font-light">
+                  ({product.reviewCount} reviews)
+                </span>
+              )}
+            </div>
+            <span className="text-xl text-[#2a2420] font-light">
+              ₦{Number(product.price).toLocaleString("en-NG")}
+            </span>
+          </div>
+
+          {/* Badges */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {product.category && (
+              <span className="text-xs px-3 py-1 bg-[#f8f6f3] text-[#5a5450] rounded-full border border-[#e8e6e3] font-light">
+                {product.category}
+              </span>
+            )}
+            {product.isNaturalOrganic && (
+              <span className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded-full font-light flex items-center gap-1">
+                <Leaf size={10} />
+                Natural
+              </span>
+            )}
+            {product.isBudgetFriendly && (
+              <span className="text-xs px-3 py-1 bg-amber-100 text-amber-700 rounded-full font-light">
+                Budget Friendly
+              </span>
+            )}
+            {product.inStock && (
+              <span className="text-xs px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full font-light flex items-center gap-1">
+                <CheckCircle size={10} />
+                In Stock
+              </span>
+            )}
+          </div>
+
+          {/* Description */}
+          {product.description && (
+            <p className="text-sm text-[#5a5450] font-light leading-relaxed mb-4">
+              {product.description}
+            </p>
+          )}
+
+          {/* Skin Types */}
+          {product.skinTypes?.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-[#8b7355] font-light mb-2 flex items-center gap-1">
+                <Droplets size={12} />
+                Suitable for
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {product.skinTypes.map((s) => (
+                  <span
+                    key={s}
+                    className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-light"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Key Ingredients */}
+          {product.ingredients?.length > 0 && (
+            <div className="mb-5">
+              <p className="text-xs text-[#8b7355] font-light mb-2 flex items-center gap-1">
+                <Info size={12} />
+                Key Ingredients
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {product.ingredients.map((ing) => (
+                  <span
+                    key={ing}
+                    className="text-xs px-2.5 py-1 bg-[#f8f6f3] text-[#5a5450] rounded-full border border-[#e8e6e3] font-light"
+                  >
+                    {ing}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Add to Routine ──────────────────────────────────────────────── */}
+          <div className="mb-5 bg-[#f8f6f3] rounded-2xl p-4 border border-[#e8e6e3]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-[#2a2420] font-light flex items-center gap-2">
+                <Plus size={16} className="text-[#8b7355]" /> Add to My Routine
+              </p>
+              <button
+                onClick={() => {
+                  setShowRoutineForm((f) => !f);
+                  setRoutineSuccess("");
+                  setRoutineError("");
+                }}
+                className="text-xs text-[#8b7355] font-light flex items-center gap-1 hover:underline"
+              >
+                {showRoutineForm ? "Cancel" : "Set up"}{" "}
+                <ChevronDown
+                  size={12}
+                  className={`transition-transform ${showRoutineForm ? "rotate-180" : ""}`}
+                />
+              </button>
+            </div>
+
+            {routineSuccess && (
+              <div className="flex items-center gap-2 text-emerald-700 text-sm font-light bg-emerald-50 rounded-xl px-3 py-2">
+                <CheckCircle size={14} />
+                {routineSuccess}
+              </div>
+            )}
+            {routineError && (
+              <div className="flex items-center gap-2 text-red-600 text-sm font-light bg-red-50 rounded-xl px-3 py-2">
+                <AlertCircle size={14} />
+                {routineError}
+              </div>
+            )}
+
+            {showRoutineForm && (
+              <div className="mt-3 space-y-3">
+                {/* AM / PM toggle */}
+                <div>
+                  <p className="text-xs text-[#5a5450] font-light mb-1.5">
+                    Which routine?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPeriod("am")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-light border transition-all ${period === "am" ? "bg-amber-400 text-white border-amber-400" : "bg-white border-[#e8e6e3] text-[#5a5450] hover:border-amber-300"}`}
+                    >
+                      <Sun size={15} /> Morning (AM)
+                    </button>
+                    <button
+                      onClick={() => setPeriod("pm")}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-light border transition-all ${period === "pm" ? "bg-indigo-500 text-white border-indigo-500" : "bg-white border-[#e8e6e3] text-[#5a5450] hover:border-indigo-300"}`}
+                    >
+                      <Moon size={15} /> Night (PM)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Step type */}
+                <div>
+                  <p className="text-xs text-[#5a5450] font-light mb-1.5">
+                    Step type
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {STEP_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setStepType(t)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-light border transition-all ${stepType === t ? "bg-[#8b7355] text-white border-[#8b7355]" : "bg-white border-[#e8e6e3] text-[#5a5450] hover:border-[#8b7355]"}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleAddToRoutine}
+                  disabled={addingToRoutine}
+                  className="w-full py-2.5 bg-[#8b7355] text-white rounded-xl text-sm font-light flex items-center justify-center gap-2 hover:bg-[#6d5a43] transition-all disabled:opacity-50"
+                >
+                  {addingToRoutine ? (
+                    <Loader size={14} className="animate-spin" />
+                  ) : (
+                    <Plus size={14} />
+                  )}
+                  Add to {period.toUpperCase()} Routine
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Buy Links */}
+          <div>
+            <p className="text-sm text-[#2a2420] font-light mb-3 flex items-center gap-2">
+              <ShoppingBag size={16} className="text-[#8b7355]" />
+              Where to Buy
+            </p>
+            {buyLinks.length > 0 ? (
+              <div className="space-y-2">
+                {buyLinks.map((link, i) => (
+                  <a
+                    key={i}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-xl border border-[#e8e6e3] hover:border-[#8b7355]/40 hover:bg-[#fafaf9] transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-8 h-8 rounded-lg ${PLATFORM_COLORS[link.platform] || "bg-[#8b7355]"} flex items-center justify-center`}
+                      >
+                        <ShoppingBag size={14} className="text-white" />
+                      </span>
+                      <div>
+                        <p className="text-sm text-[#2a2420] font-light">
+                          {link.platform}
+                        </p>
+                        {link.sellerName && (
+                          <p className="text-xs text-[#8b7355]/60 font-light">
+                            {link.sellerName}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {link.price && (
+                        <span className="text-sm text-[#5a5450] font-light">
+                          ₦{Number(link.price).toLocaleString("en-NG")}
+                        </span>
+                      )}
+                      <ExternalLink
+                        size={14}
+                        className="text-[#8b7355] group-hover:translate-x-0.5 transition-transform"
+                      />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[#8b7355]/60 font-light py-3 text-center bg-[#f8f6f3] rounded-xl">
+                No purchase links available yet
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductCard({ product, onSave, onClick }) {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e) => {
+    e.stopPropagation();
+    setSaving(true);
+    await onSave(product._id);
+    setSaving(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#e8e6e3] via-[#f0ede8] to-[#f5f3ef]">
+    <div
+      onClick={onClick}
+      className="bg-white rounded-2xl border border-[#e8e6e3]/60 hover:border-[#8b7355]/40 hover:shadow-lg transition-all overflow-hidden group cursor-pointer"
+    >
+      <div className="relative h-48 bg-[#f8f6f3] overflow-hidden">
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Package size={32} className="text-[#8b7355]/20" />
+          </div>
+        )}
+        <button
+          onClick={handleSave}
+          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full shadow-md flex items-center justify-center transition-all ${product.isSaved ? "bg-rose-500 text-white" : "bg-white text-[#8b7355] hover:bg-rose-50"}`}
+        >
+          {saving ? (
+            <Loader size={14} className="animate-spin" />
+          ) : (
+            <Heart size={14} fill={product.isSaved ? "currentColor" : "none"} />
+          )}
+        </button>
+        {!product.inStock && (
+          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-1 font-light">
+            Out of Stock
+          </div>
+        )}
+        {product.isLocalBrand && (
+          <span className="absolute top-2.5 left-2.5 text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-light">
+            🇳🇬 Local
+          </span>
+        )}
+      </div>
+      <div className="p-4">
+        <p className="text-xs text-[#8b7355] font-light mb-0.5">
+          {product.brand}
+        </p>
+        <h3 className="text-sm text-[#2a2420] font-light leading-snug mb-2 line-clamp-2">
+          {product.name}
+        </h3>
+        <div className="flex items-center gap-1.5 mb-2">
+          <Star size={11} className="text-amber-400 fill-amber-400" />
+          <span className="text-xs text-[#5a5450] font-light">
+            {product.rating?.toFixed(1) || "—"}
+          </span>
+          {product.reviewCount > 0 && (
+            <span className="text-xs text-[#8b7355]/50 font-light">
+              ({product.reviewCount})
+            </span>
+          )}
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-base text-[#2a2420] font-light">
+            ₦{Number(product.price).toLocaleString("en-NG")}
+          </span>
+          <div className="flex gap-1 flex-wrap justify-end">
+            {product.isNaturalOrganic && (
+              <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-light">
+                Natural
+              </span>
+            )}
+            {product.isBudgetFriendly && (
+              <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-light">
+                Budget
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="mt-3 w-full py-2 bg-[#f8f6f3] border border-[#e8e6e3] rounded-xl text-xs font-light flex items-center justify-center gap-1.5 text-[#8b7355] group-hover:bg-[#8b7355] group-hover:text-white group-hover:border-[#8b7355] transition-all">
+          <ShoppingBag size={12} /> View Details & Buy
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-[#e8e6e3]/60 overflow-hidden animate-pulse">
+      <div className="h-48 bg-[#e8e6e3]" />
+      <div className="p-4 space-y-2">
+        <div className="h-3 bg-[#e8e6e3] rounded-full w-20" />
+        <div className="h-4 bg-[#e8e6e3] rounded-full w-3/4" />
+        <div className="h-3 bg-[#e8e6e3] rounded-full w-1/2" />
+        <div className="h-8 bg-[#e8e6e3] rounded-xl mt-3" />
+      </div>
+    </div>
+  );
+}
+
+export default function ProductsPage() {
+  const user = getUser();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productList, setProductList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSkinType, setSelectedSkinType] = useState("");
+  const [sortBy, setSortBy] = useState("match");
+  const [showFilters, setShowFilters] = useState(false);
+  const searchTimer = useRef(null);
+
+  const fetchProducts = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = { page, limit: 12, sortBy };
+        if (searchQuery) params.search = searchQuery;
+        if (selectedCategory) params.category = selectedCategory;
+        if (selectedSkinType) params.skinType = selectedSkinType;
+        const data = await productsApi.getAll(params);
+        setProductList(data.products || []);
+        setPagination(data.pagination || { page: 1, pages: 1, total: 0 });
+      } catch {
+        setError("Could not load products. Please try again.");
+      }
+      setLoading(false);
+    },
+    [searchQuery, selectedCategory, selectedSkinType, sortBy],
+  );
+
+  useEffect(() => {
+    fetchProducts(1);
+  }, [fetchProducts]);
+
+  useEffect(() => {
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setSearchQuery(searchInput), 500);
+    return () => clearTimeout(searchTimer.current);
+  }, [searchInput]);
+
+  const handleSave = async (productId) => {
+    try {
+      const res = await productsApi.save(productId);
+      setProductList((prev) =>
+        prev.map((p) =>
+          p._id === productId ? { ...p, isSaved: res.saved } : p,
+        ),
+      );
+
+      if (selectedProduct?._id === productId) {
+        setSelectedProduct((prev) => ({ ...prev, isSaved: res.saved }));
+      }
+    } catch {}
+  };
+
+  const clearFilters = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setSelectedCategory("");
+    setSelectedSkinType("");
+    setSortBy("match");
+  };
+  const hasFilters =
+    searchQuery || selectedCategory || selectedSkinType || sortBy !== "match";
+
+  return (
+    <div className="min-h-screen bg-[#f8f6f3]">
       <ProfileUpdateModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
       <AuthNav
         currentPage="products"
-        userName={mockUser.name}
+        userName={user?.name}
         onUpdateProfile={() => setIsProfileModalOpen(true)}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pt-24 sm:pt-28">
+      {selectedProduct && (
+        <ProductModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onSave={handleSave}
+        />
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-24 sm:pt-28">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center shadow-lg">
-                <Package className="text-white" size={24} />
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl text-[#2a2420] font-light">
+              Products
+            </h1>
+            <p className="text-sm text-[#5a5450] font-light mt-1">
+              {pagination.total > 0
+                ? `${pagination.total} products`
+                : "Loading…"}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-light transition-all ${showFilters ? "bg-[#8b7355] text-white border-[#8b7355]" : "bg-white text-[#5a5450] border-[#e8e6e3] hover:border-[#8b7355]"}`}
+          >
+            <SlidersHorizontal size={15} /> Filters{" "}
+            {hasFilters && (
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+            )}
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b7355]"
+            size={17}
+          />
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search products, brands, ingredients…"
+            className="w-full pl-11 pr-10 py-3.5 bg-white rounded-2xl border border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355]/30 text-sm font-light shadow-sm"
+          />
+          {searchInput && (
+            <button
+              onClick={() => {
+                setSearchInput("");
+                setSearchQuery("");
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b7355]"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* Filters */}
+        {showFilters && (
+          <div className="bg-white rounded-2xl border border-[#e8e6e3] p-5 mb-5 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-[#5a5450] font-light mb-2">
+                  Category
+                </label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-[#f8f6f3] rounded-xl border border-[#e8e6e3] text-sm font-light focus:outline-none focus:ring-2 focus:ring-[#8b7355]/30"
+                >
+                  <option value="">All Categories</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl text-[#2a2420] font-light">
-                  Product Recommendations
-                </h1>
-                <p className="text-sm sm:text-base text-[#5a5450] font-light">
-                  {filteredProducts.length} products matched to your skin
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Search and Sort Bar */}
-          <div className="bg-gradient-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-[2rem] shadow-xl p-4 border border-[#e8e6e3]/30">
-            <div className="flex flex-col sm:flex-row gap-3">
-              {/* Search */}
-              <div className="flex-1 relative">
-                <Search
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#5a5450]"
-                  size={20}
-                />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search products or brands..."
-                  className="w-full pl-12 pr-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-transparent font-light"
-                />
-              </div>
-
-              {/* Sort */}
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-3 bg-white/60 rounded-xl border-2 border-[#e8e6e3] focus:outline-none focus:ring-2 focus:ring-[#8b7355] font-light"
-              >
-                <option value="match">Best Match</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="rating">Highest Rated</option>
-              </select>
-
-              {/* Filter Toggle */}
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`px-6 py-3 rounded-xl transition-all flex items-center gap-2 font-light ${
-                  showFilters
-                    ? "bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white shadow-md"
-                    : "bg-white/60 border-2 border-[#e8e6e3] text-[#5a5450] hover:border-[#8b7355]"
-                }`}
-              >
-                <Filter size={18} />
-                Filters
-                {activeFiltersCount > 0 && (
-                  <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters Sidebar */}
-          {showFilters && (
-            <div className="lg:col-span-1">
-              <div className="bg-gradient-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-[2rem] shadow-xl p-6 border border-[#e8e6e3]/30 sticky top-24">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg text-[#2a2420] font-light">Filters</h3>
-                  {activeFiltersCount > 0 && (
-                    <button
-                      onClick={clearAllFilters}
-                      className="text-xs text-[#8b7355] hover:underline font-light"
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-6">
-                  {/* Category Filter */}
-                  <div>
-                    <h4 className="text-sm text-[#2a2420] mb-3 font-light">
-                      Category
-                    </h4>
-                    <div className="space-y-2">
-                      {availableCategories.map((cat) => (
-                        <label
-                          key={cat}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedCategories.includes(cat)}
-                            onChange={() =>
-                              toggleFilter(
-                                selectedCategories,
-                                setSelectedCategories,
-                                cat,
-                              )
-                            }
-                            className="w-4 h-4 rounded border-2 border-[#e8e6e3] text-[#8b7355] focus:ring-[#8b7355]"
-                          />
-                          <span className="text-sm text-[#5a5450] font-light">
-                            {cat}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Skin Type Filter */}
-                  <div className="pt-6 border-t border-[#e8e6e3]">
-                    <h4 className="text-sm text-[#2a2420] mb-3 font-light">
-                      Skin Type
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {availableSkinTypes.map((type) => (
-                        <button
-                          key={type}
-                          onClick={() =>
-                            toggleFilter(
-                              selectedSkinTypes,
-                              setSelectedSkinTypes,
-                              type,
-                            )
-                          }
-                          className={`px-3 py-1.5 rounded-full text-xs transition-all font-light ${
-                            selectedSkinTypes.includes(type)
-                              ? "bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white shadow-md"
-                              : "bg-white/60 text-[#5a5450] border border-[#e8e6e3] hover:border-[#8b7355]"
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Concerns Filter */}
-                  <div className="pt-6 border-t border-[#e8e6e3]">
-                    <h4 className="text-sm text-[#2a2420] mb-3 font-light">
-                      Concerns
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {availableConcerns.map((concern) => (
-                        <button
-                          key={concern}
-                          onClick={() =>
-                            toggleFilter(
-                              selectedConcerns,
-                              setSelectedConcerns,
-                              concern,
-                            )
-                          }
-                          className={`px-3 py-1.5 rounded-full text-xs transition-all font-light ${
-                            selectedConcerns.includes(concern)
-                              ? "bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white shadow-md"
-                              : "bg-white/60 text-[#5a5450] border border-[#e8e6e3] hover:border-[#8b7355]"
-                          }`}
-                        >
-                          <span className="flex items-center gap-1">
-                            {getConcernIcon(concern)}
-                            {concern}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* In Stock Filter */}
-                  <div className="pt-6 border-t border-[#e8e6e3]">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={inStockOnly}
-                        onChange={() => setInStockOnly(!inStockOnly)}
-                        className="w-4 h-4 rounded border-2 border-[#e8e6e3] text-[#8b7355] focus:ring-[#8b7355]"
-                      />
-                      <span className="text-sm text-[#2a2420] font-light">
-                        In stock only
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Products Grid */}
-          <div className={showFilters ? "lg:col-span-3" : "lg:col-span-4"}>
-            {filteredProducts.length === 0 ? (
-              <div className="bg-gradient-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-[2rem] shadow-xl p-12 text-center border border-[#e8e6e3]/30">
-                <Package className="mx-auto mb-4 text-[#8b7355]" size={48} />
-                <h3 className="text-xl text-[#2a2420] mb-2 font-light">
-                  No products found
-                </h3>
-                <p className="text-[#5a5450] mb-6 font-light">
-                  Try adjusting your filters
-                </p>
-                <button
-                  onClick={clearAllFilters}
-                  className="px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-full hover:shadow-xl transition-all font-light"
+                <label className="block text-xs text-[#5a5450] font-light mb-2">
+                  Skin Type
+                </label>
+                <select
+                  value={selectedSkinType}
+                  onChange={(e) => setSelectedSkinType(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-[#f8f6f3] rounded-xl border border-[#e8e6e3] text-sm font-light focus:outline-none focus:ring-2 focus:ring-[#8b7355]/30"
                 >
-                  Clear Filters
-                </button>
+                  <option value="">All Skin Types</option>
+                  {SKIN_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="bg-gradient-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-[1.5rem] shadow-xl overflow-hidden border border-[#e8e6e3]/30 hover:shadow-2xl transition-all group"
-                  >
-                    {/* Product Image */}
-                    <div className="relative h-64 bg-[#f8f6f3] overflow-hidden">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-
-                      {/* Out of Stock Overlay */}
-                      {!product.inStock && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                          <span className="px-4 py-2 bg-white rounded-full text-sm text-[#2a2420] font-light shadow-lg flex items-center gap-1">
-                            <AlertCircle size={14} />
-                            Out of Stock
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Match Score Badge */}
-                      {product.matchScore && (
-                        <div className="absolute top-3 left-3 px-3 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-full text-xs font-light shadow-lg flex items-center gap-1">
-                          <Sparkles size={12} />
-                          {product.matchScore}% Match
-                        </div>
-                      )}
-
-                      {/* Quick Actions */}
-                      <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 transition-all">
-                          <Heart size={18} className="text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="p-5">
-                      <span className="text-xs text-[#8b7355] font-light">
-                        {product.brand}
-                      </span>
-                      <h3 className="text-base text-[#2a2420] mb-2 font-light line-clamp-2">
-                        {product.name}
-                      </h3>
-
-                      {/* Rating */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="flex items-center gap-1">
-                          <Star
-                            size={14}
-                            className="text-yellow-500 fill-yellow-500"
-                          />
-                          <span className="text-sm text-[#2a2420] font-light">
-                            {product.rating}
-                          </span>
-                        </div>
-                        <span className="text-xs text-[#5a5450] font-light">
-                          ({product.reviews})
-                        </span>
-                      </div>
-
-                      {/* Concerns Tags */}
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {product.concerns.slice(0, 2).map((concern, i) => (
-                          <span
-                            key={i}
-                            className="px-2 py-0.5 bg-[#8b7355]/10 text-[#8b7355] rounded-full text-xs font-light flex items-center gap-1"
-                          >
-                            {getConcernIcon(concern)}
-                            {concern}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Price and Action */}
-                      <div className="flex items-center justify-between pt-4 border-t border-[#e8e6e3]">
-                        <div>
-                          <span className="text-xl text-[#2a2420] font-light">
-                            ₦{product.price.toLocaleString()}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => setSelectedProduct(product)}
-                          className="px-4 py-2 bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-full hover:shadow-lg transition-all text-sm font-light"
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div>
+                <label className="block text-xs text-[#5a5450] font-light mb-2">
+                  Sort By
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-[#f8f6f3] rounded-xl border border-[#e8e6e3] text-sm font-light focus:outline-none focus:ring-2 focus:ring-[#8b7355]/30"
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               </div>
+            </div>
+            {hasFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs text-[#8b7355] font-light hover:underline flex items-center gap-1"
+              >
+                <X size={12} /> Clear all filters
+              </button>
             )}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Product Detail Modal */}
-      {selectedProduct && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-[#f8f6f3] via-white to-[#fdf9f0] rounded-[2.5rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[#e8e6e3]/30">
-            <div className="sticky top-0 bg-gradient-to-br from-[#f8f6f3] via-white to-[#fdf9f0] p-6 border-b border-[#e8e6e3] flex justify-between items-center rounded-t-[2.5rem]">
-              <h2 className="text-2xl text-[#2a2420] font-light">
-                Product Details
-              </h2>
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 transition-all"
-              >
-                <X className="text-[#5a5450]" size={20} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <img
-                  src={selectedProduct.image}
-                  alt={selectedProduct.name}
-                  className="w-full h-80 object-cover rounded-2xl shadow-lg"
-                />
-                <div>
-                  <span className="text-sm text-[#8b7355] font-light">
-                    {selectedProduct.brand}
-                  </span>
-                  <h3 className="text-2xl text-[#2a2420] mb-3 font-light">
-                    {selectedProduct.name}
-                  </h3>
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex items-center gap-1">
-                      <Star
-                        size={16}
-                        className="text-yellow-500 fill-yellow-500"
-                      />
-                      <span className="text-base text-[#2a2420] font-light">
-                        {selectedProduct.rating}
-                      </span>
-                    </div>
-                    <span className="text-sm text-[#5a5450] font-light">
-                      ({selectedProduct.reviews} reviews)
-                    </span>
-                  </div>
-
-                  <div className="mb-4">
-                    <span className="text-3xl text-[#2a2420] font-light">
-                      ₦{selectedProduct.price.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {selectedProduct.matchScore && (
-                    <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="text-green-600" size={20} />
-                        <span className="text-sm text-green-800 font-light">
-                          <strong className="font-normal">
-                            {selectedProduct.matchScore}% match
-                          </strong>{" "}
-                          for your skin profile
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
-                    <button className="flex-1 px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-full hover:shadow-xl transition-all flex items-center justify-center gap-2 font-light">
-                      <ShoppingCart size={18} />
-                      Add to Routine
-                    </button>
-                    <button className="w-12 h-12 border-2 border-[#e8e6e3] rounded-full flex items-center justify-center hover:border-red-500 transition-all">
-                      <Heart size={18} className="text-red-500" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Details Sections */}
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-lg text-[#2a2420] mb-3 font-light">
-                    Good For
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProduct.concerns.map((concern, i) => (
-                      <span
-                        key={i}
-                        className="px-4 py-2 bg-[#8b7355]/10 text-[#8b7355] rounded-full text-sm font-light flex items-center gap-1"
-                      >
-                        <CheckCircle size={14} />
-                        {concern}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-lg text-[#2a2420] mb-3 font-light">
-                    Suitable Skin Types
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProduct.skinTypes.map((type, i) => (
-                      <span
-                        key={i}
-                        className="px-4 py-2 bg-white/60 border border-[#e8e6e3] text-[#2a2420] rounded-full text-sm font-light"
-                      >
-                        {type}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-lg text-[#2a2420] mb-3 font-light">
-                    Key Ingredients
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProduct.ingredients.map((ingredient, i) => (
-                      <span
-                        key={i}
-                        className="px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 rounded-full text-sm font-light"
-                      >
-                        {ingredient}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div
-                  className={`p-5 rounded-xl border-2 ${selectedProduct.inStock ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" : "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200"}`}
+        {/* Filter pills */}
+        {hasFilters && !showFilters && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {searchQuery && (
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#8b7355] text-white rounded-full font-light">
+                "{searchQuery}"{" "}
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearchQuery("");
+                  }}
                 >
-                  <p
-                    className={`text-sm ${selectedProduct.inStock ? "text-green-800" : "text-yellow-800"} font-light flex items-center gap-2`}
-                  >
-                    {selectedProduct.inStock ? (
-                      <>
-                        <CheckCircle size={16} />
-                        In stock and ready to ship
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle size={16} />
-                        Currently out of stock - notify me when available
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {selectedCategory && (
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#8b7355] text-white rounded-full font-light">
+                {selectedCategory}{" "}
+                <button onClick={() => setSelectedCategory("")}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {selectedSkinType && (
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#8b7355] text-white rounded-full font-light">
+                {selectedSkinType}{" "}
+                <button onClick={() => setSelectedSkinType("")}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 text-red-600 text-sm font-light mb-5">
+            <AlertCircle size={16} />
+            {error}
+            <button
+              onClick={() => fetchProducts(1)}
+              className="ml-auto underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Grid */}
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...Array(8)].map((_, i) => (
+              <ProductSkeleton key={i} />
+            ))}
+          </div>
+        ) : productList.length === 0 ? (
+          <div className="text-center py-16">
+            <Package size={40} className="text-[#8b7355]/20 mx-auto mb-3" />
+            <p className="text-[#5a5450] font-light mb-3">No products found.</p>
+            {hasFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-[#8b7355] underline font-light"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {productList.map((p) => (
+              <ProductCard
+                key={p._id}
+                product={p}
+                onSave={handleSave}
+                onClick={() => setSelectedProduct(p)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && pagination.pages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <button
+              onClick={() => fetchProducts(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+              className="w-9 h-9 rounded-xl border border-[#e8e6e3] flex items-center justify-center text-[#8b7355] hover:bg-[#8b7355] hover:text-white transition-all disabled:opacity-30"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            {[...Array(Math.min(pagination.pages, 7))].map((_, i) => {
+              const page = i + 1;
+              return (
+                <button
+                  key={i}
+                  onClick={() => fetchProducts(page)}
+                  className={`w-9 h-9 rounded-xl text-sm font-light transition-all ${pagination.page === page ? "bg-[#8b7355] text-white" : "border border-[#e8e6e3] text-[#5a5450] hover:border-[#8b7355]"}`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => fetchProducts(pagination.page + 1)}
+              disabled={pagination.page >= pagination.pages}
+              className="w-9 h-9 rounded-xl border border-[#e8e6e3] flex items-center justify-center text-[#8b7355] hover:bg-[#8b7355] hover:text-white transition-all disabled:opacity-30"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

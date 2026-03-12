@@ -17,7 +17,7 @@ export function About() {
           <div className="relative order-2 lg:order-1">
             <div className="rounded-3xl overflow-hidden shadow-2xl">
               <img
-                src="https://images.unsplash.com/photo-1765607476376-9574ea76b2ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwd29tYW4lMjBnbG93aW5nJTIwc2tpbiUyMG5hdHVyYWx8ZW58MXx8fHwxNjgyNDk0NDF8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+                src="https://i.pinimg.com/736x/66/a2/6b/66a26bcd57a3e78ca27a8c9b56854db6.jpg"
                 alt="Beautiful African woman with glowing skin"
                 className="w-full h-100 sm:h-125 lg:h-150 object-cover"
               />
@@ -26,7 +26,7 @@ export function About() {
             {/* Stats Card */}
             <div className="absolute -bottom-6 -right-6 sm:-bottom-8 sm:-right-8 bg-white/95 backdrop-blur-sm p-6 lg:p-8 rounded-3xl shadow-2xl max-w-xs border border-white/50">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-[#8b7355] to-[#6d5a43] rounded-2xl flex items-center justify-center shrink-0">
+                <div className="w-14 h-14 lg:w-16 lg:h-16 bg-linear-to-br from-[#8b7355] to-[#6d5a43] rounded-2xl flex items-center justify-center shrink-0">
                   <Users className="text-white" size={28} />
                 </div>
                 <div>
@@ -45,7 +45,7 @@ export function About() {
           <div className="space-y-6 lg:space-y-8 order-1 lg:order-2">
             <div>
               <h2 className="text-4xl sm:text-5xl lg:text-6xl text-[#2a2420] mb-6 font-light tracking-tight leading-tight">
-                Skincare Made Simple for Nigerian Skin
+                Skincare Made Simple for your Skin
               </h2>
               <p className="text-base sm:text-lg text-[#5a5450] mb-4 font-light leading-relaxed">
                 DermAI was founded with a simple mission: to democratize access

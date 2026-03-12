@@ -1,18 +1,11 @@
 import { useState } from "react";
-import {
-  Eye,
-  EyeOff,
-  Lock,
-  CheckCircle,
-  AlertTriangle,
-  Menu,
-  X,
-  LogIn,
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Lock, LogIn, Menu, X } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { auth, setToken, saveUser } from "../../services/api";
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     password: "",
     confirmPassword: "",
@@ -21,29 +14,48 @@ export function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setError("");
     if (formData.password.length < 8) {
-      alert("Password must be at least 8 characters long");
+      setError("Password must be at least 8 characters long");
       return;
     }
-
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setError("Passwords do not match");
       return;
     }
 
-    console.log("Password reset successful");
-    setIsSuccess(true);
+    const token = searchParams.get("token");
+    if (!token) {
+      setError(
+        "Invalid or missing reset token. Please request a new password reset.",
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await auth.resetPassword(token, formData.password);
+      // Backend returns new tokens on success
+      if (data.accessToken) {
+        setToken(data.accessToken);
+        if (data.user) saveUser(data.user);
+      }
+      setIsSuccess(true);
+    } catch (err) {
+      setError(
+        err.message || "Failed to reset password. The link may have expired.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getPasswordStrength = (password) => {
@@ -58,27 +70,17 @@ export function ResetPasswordPage() {
   };
 
   const passwordStrength = getPasswordStrength(formData.password);
-
-  const navigateToPage = (path, options = {}) => {
+  const navigateToPage = (path) => {
     navigate(path);
-
-    if (options.scrollToTop !== false) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    if (options.closeMenu && options.setIsMenuOpen) {
-      options.setIsMenuOpen(false);
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-[#e8e6e3] via-[#f0ede8] to-[#f5f3ef] flex flex-col">
-      {/* Enhanced Header */}
       <nav className="fixed top-0 left-0 right-0 z-50 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-white/90 backdrop-blur-md shadow-xl rounded-full">
             <div className="flex justify-between items-center h-14 px-4 sm:px-6">
-              {/* Logo */}
               <button
                 onClick={() => navigateToPage("/home")}
                 className="flex items-center gap-2 group"
@@ -103,8 +105,6 @@ export function ResetPasswordPage() {
                   <span className="text-[#8b7355]">AI</span>
                 </span>
               </button>
-
-              {/* Desktop Actions */}
               <div className="hidden sm:flex items-center gap-3">
                 <button
                   onClick={() => navigateToPage("/login")}
@@ -113,12 +113,9 @@ export function ResetPasswordPage() {
                   Sign In
                 </button>
               </div>
-
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="sm:hidden p-2 rounded-full hover:bg-[#f8f6f3] transition-all"
-                aria-label="Toggle menu"
               >
                 {isMobileMenuOpen ? (
                   <X size={22} strokeWidth={2} />
@@ -131,14 +128,12 @@ export function ResetPasswordPage() {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <>
           <div
             className="fixed inset-0 bg-black/20 backdrop-blur-sm sm:hidden z-40 mt-20"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-
           <div className="fixed top-24 left-4 right-4 sm:hidden z-50">
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-[#e8e6e3]/50 overflow-hidden">
               <div className="p-6">
@@ -146,8 +141,7 @@ export function ResetPasswordPage() {
                   onClick={() => navigateToPage("/login")}
                   className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-linear-to-r from-[#8b7355] to-[#6d5a43] text-white rounded-xl hover:shadow-xl transition-all font-light"
                 >
-                  <LogIn size={18} />
-                  Sign In
+                  <LogIn size={18} /> Sign In
                 </button>
               </div>
             </div>
@@ -155,28 +149,13 @@ export function ResetPasswordPage() {
         </>
       )}
 
-      {/* Main Content */}
       <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28">
         <div className="max-w-md w-full">
           {!isSuccess ? (
             <>
-              {/* Header */}
               <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-[#8b7355]/10 rounded-full mb-4">
-                  <svg
-                    width="32"
-                    height="32"
-                    fill="none"
-                    stroke="#8b7355"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" y1="19" x2="12" y2="23"></line>
-                    <line x1="8" y1="23" x2="16" y2="23"></line>
-                  </svg>
+                  <Lock className="w-6 h-6 text-[#8b7355]" />
                 </div>
                 <h1 className="text-3xl sm:text-4xl text-[#2a2420] mb-3">
                   Reset Your Password
@@ -187,6 +166,11 @@ export function ResetPasswordPage() {
               </div>
 
               <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-light">
+                    {error}
+                  </div>
+                )}
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
                     <label
@@ -211,11 +195,13 @@ export function ResetPasswordPage() {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8b7355] hover:text-[#2a2420]"
                       >
-                        {showPassword ? <EyeOff /> : <Eye />}
+                        {showPassword ? (
+                          <EyeOff size={20} />
+                        ) : (
+                          <Eye size={20} />
+                        )}
                       </button>
                     </div>
-
-                    {/* Password Strength Indicator */}
                     {formData.password && (
                       <div className="mt-2">
                         <div className="flex items-center justify-between mb-1">
@@ -223,15 +209,7 @@ export function ResetPasswordPage() {
                             Password strength:
                           </span>
                           <span
-                            className={`text-xs ${
-                              passwordStrength.strength === 100
-                                ? "text-green-600"
-                                : passwordStrength.strength === 75
-                                  ? "text-blue-600"
-                                  : passwordStrength.strength === 50
-                                    ? "text-yellow-600"
-                                    : "text-red-600"
-                            }`}
+                            className={`text-xs ${passwordStrength.strength === 100 ? "text-green-600" : passwordStrength.strength === 75 ? "text-blue-600" : passwordStrength.strength === 50 ? "text-yellow-600" : "text-red-600"}`}
                           >
                             {passwordStrength.label}
                           </span>
@@ -271,12 +249,15 @@ export function ResetPasswordPage() {
                         }
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8b7355] hover:text-[#2a2420]"
                       >
-                        {showConfirmPassword ? <EyeOff /> : <Eye />}
+                        {showConfirmPassword ? (
+                          <EyeOff size={20} />
+                        ) : (
+                          <Eye size={20} />
+                        )}
                       </button>
                     </div>
                   </div>
 
-                  {/* Password Requirements */}
                   <div className="bg-[#f8f6f3] p-4 rounded-xl">
                     <p className="text-xs text-[#2a2420] mb-2">
                       Password must contain:
@@ -311,16 +292,23 @@ export function ResetPasswordPage() {
 
                   <button
                     type="submit"
-                    className="w-full px-6 py-3.5 bg-[#2a2420] text-white rounded-xl hover:bg-[#3a3430] transition-all hover:scale-[1.02]"
+                    disabled={isLoading}
+                    className="w-full px-6 py-3.5 bg-[#2a2420] text-white rounded-xl hover:bg-[#3a3430] transition-all hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Reset Password
+                    {isLoading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      "Reset Password"
+                    )}
                   </button>
                 </form>
               </div>
             </>
           ) : (
             <>
-              {/* Success Message */}
               <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
                   <svg
@@ -344,7 +332,6 @@ export function ResetPasswordPage() {
                   with your new password.
                 </p>
               </div>
-
               <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8">
                 <button
                   onClick={() => navigateToPage("/login")}
@@ -352,39 +339,18 @@ export function ResetPasswordPage() {
                 >
                   Continue to Sign In
                 </button>
-
                 <div className="mt-6 text-center">
                   <p className="text-sm text-[#5a5450]">
                     Remember to use your new password when signing in
                   </p>
                 </div>
               </div>
-
-              {/* Security Note */}
               <div className="mt-6 bg-[#8b7355]/10 border border-[#8b7355]/20 rounded-2xl p-4">
-                <div className="flex gap-3">
-                  <svg
-                    width="20"
-                    height="20"
-                    fill="none"
-                    stroke="#8b7355"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="shrink-0 mt-0.5"
-                  >
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                  </svg>
-                  <div>
-                    <p className="text-sm text-[#2a2420] mb-1">Security Tip</p>
-                    <p className="text-xs text-[#5a5450]">
-                      If you didn't request this password change, please contact
-                      our support team immediately.
-                    </p>
-                  </div>
-                </div>
+                <p className="text-xs text-[#5a5450]">
+                  <strong className="text-[#2a2420]">Security Tip: </strong>If
+                  you didn't request this password change, please contact our
+                  support team immediately.
+                </p>
               </div>
             </>
           )}

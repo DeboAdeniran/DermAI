@@ -76,7 +76,7 @@ export function CookiePolicy() {
               Cookie Policy
             </h1>
             <p className="text-lg text-[#5a5450] font-light">
-              Last updated: December 21, 2024
+              Last updated: February 27, 2026
             </p>
           </div>
 
@@ -430,7 +430,7 @@ export function CookiePolicy() {
             © {new Date().getFullYear()} DermAI. All rights reserved.
           </p>
           <p className="text-xs text-[#5a5450]/70 font-light">
-            This document was last updated on December 21, 2024
+            This document was last updated on February 27, 2026
           </p>
         </div>
       </footer>
