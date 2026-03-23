@@ -8,7 +8,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { getToken, setToken } from "./services/api";
+import { getToken, setToken, saveUser, auth } from "./services/api";
 
 // Public pages
 import { HomePage } from "./components/Home/HomePage";
@@ -52,7 +52,10 @@ function OAuthLanding({ children }) {
     const token = params.get("token");
     if (token) {
       setToken(token);
-      // Clean up URL without reload
+      // fetch and save the user after setting the token
+      auth.getMe().then((data) => {
+        saveUser(data.user);
+      });
       window.history.replaceState({}, "", location.pathname);
     }
   }, [location]);
