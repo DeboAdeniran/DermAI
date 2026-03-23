@@ -1,5 +1,4 @@
 /* eslint-disable no-empty */
-/* eslint-disable no-unused-vars */
 import { useState, useEffect, useRef } from "react";
 import {
   Bell,
@@ -11,9 +10,12 @@ import {
   ChevronDown,
   Check,
   Trash2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { notifications as notifApi, getUser } from "../../services/api";
+import { useTheme } from "../../context/ThemeContext";
 
 const NAV_LINKS = [
   { label: "Dashboard", path: "/dashboard", key: "dashboard" },
@@ -49,6 +51,8 @@ export function AuthNav({
   onUpdateProfile,
 }) {
   const navigate = useNavigate();
+  const { isDark, toggle: toggleTheme } = useTheme();
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -87,8 +91,7 @@ export function AuthNav({
       const data = await notifApi.getAll(1, 15);
       setNotifList(data?.notifications || []);
       setUnreadCount(data?.unreadCount || 0);
-    } catch (e) {
-      // Silent fail — user may not be logged in yet
+    } catch {
     } finally {
       setNotifLoading(false);
     }
@@ -100,7 +103,6 @@ export function AuthNav({
     return () => clearInterval(interval);
   }, []);
 
-  // ── Close dropdowns on outside click ──────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target))
@@ -119,7 +121,7 @@ export function AuthNav({
         prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (e) {}
+    } catch {}
   };
 
   const handleMarkAllRead = async () => {
@@ -127,7 +129,7 @@ export function AuthNav({
       await notifApi.markAllRead();
       setNotifList((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch (e) {}
+    } catch {}
   };
 
   const handleDelete = async (id) => {
@@ -136,10 +138,9 @@ export function AuthNav({
       await notifApi.delete(id);
       setNotifList((prev) => prev.filter((n) => n._id !== id));
       if (wasUnread) setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (e) {}
+    } catch {}
   };
 
-  // Safe first-letter avatar — handles null/undefined userName
   const avatarLetter = userName
     ? String(userName).charAt(0).toUpperCase()
     : "U";
@@ -147,14 +148,27 @@ export function AuthNav({
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-[#e8e6e3]/40">
+        <div
+          className="backdrop-blur-md rounded-full shadow-lg border transition-colors"
+          style={{
+            background: isDark
+              ? "rgba(30,27,24,0.92)"
+              : "rgba(255,255,255,0.92)",
+            borderColor: "var(--border)",
+          }}
+        >
           <div className="flex items-center justify-between h-14 px-4 sm:px-6">
             {/* Logo */}
             <button
               onClick={() => navigate("/dashboard")}
               className="flex items-center gap-2 group shrink-0"
             >
-              <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm group-hover:shadow-md transition-all"
+                style={{
+                  background: "linear-gradient(135deg, #8b7355, #6d5a43)",
+                }}
+              >
                 <svg
                   width="14"
                   height="14"
@@ -169,42 +183,64 @@ export function AuthNav({
                   <line x1="7" y1="7" x2="7.01" y2="7" />
                 </svg>
               </div>
-              <span className="text-[#2a2420] font-light text-base hidden sm:block">
-                derm<span className="text-[#8b7355]">AI</span>
+              <span
+                className="font-light text-base hidden sm:block"
+                style={{ color: "var(--text-primary)" }}
+              >
+                derm<span style={{ color: "var(--brand)" }}>AI</span>
               </span>
             </button>
 
-            {/* Center Nav — Desktop */}
+            {/* Center nav — desktop */}
             <div className="hidden lg:flex items-center gap-1">
               {NAV_LINKS.map((link) => (
                 <button
                   key={link.key}
                   onClick={() => navigate(link.path)}
-                  className={`px-3.5 py-1.5 rounded-full text-sm font-light transition-all ${
+                  className="px-3.5 py-1.5 rounded-full text-sm font-light transition-all"
+                  style={
                     currentPage === link.key
-                      ? "bg-[#2a2420] text-white shadow-sm"
-                      : "text-[#5a5450] hover:text-[#2a2420] hover:bg-[#f8f6f3]"
-                  }`}
+                      ? {
+                          background: "var(--text-primary)",
+                          color: "var(--bg-base)",
+                        }
+                      : { color: "var(--text-secondary)" }
+                  }
                 >
                   {link.label}
                 </button>
               ))}
             </div>
 
-            {/* Right side */}
-            <div className="flex items-center gap-2">
-              {/* ── Notification Bell ─────────────────────────────────────── */}
+            {/* Right controls */}
+            <div className="flex items-center gap-1.5">
+              {/* ── Theme toggle (desktop) ─────────────────────────────── */}
+              <button
+                onClick={toggleTheme}
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                className="hidden sm:flex w-9 h-9 rounded-full items-center justify-center transition-all hover:scale-110"
+                style={{ background: "var(--bg-muted)" }}
+              >
+                {isDark ? (
+                  <Sun size={15} className="text-amber-400" />
+                ) : (
+                  <Moon size={15} className="text-indigo-400" />
+                )}
+              </button>
+
+              {/* ── Notifications ─────────────────────────────────────── */}
               <div className="relative" ref={notifRef}>
                 <button
                   onClick={() => {
                     setNotifOpen((o) => !o);
                     setProfileOpen(false);
                   }}
-                  className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                    notifOpen ? "bg-[#f8f6f3]" : "hover:bg-[#f8f6f3]"
-                  }`}
+                  className="relative w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  style={{
+                    background: notifOpen ? "var(--bg-muted)" : "transparent",
+                  }}
                 >
-                  <Bell size={18} className="text-[#5a5450]" />
+                  <Bell size={18} style={{ color: "var(--text-secondary)" }} />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium px-1 animate-pulse">
                       {unreadCount > 9 ? "9+" : unreadCount}
@@ -215,20 +251,28 @@ export function AuthNav({
                 {/* Notification dropdown */}
                 {notifOpen && (
                   <div
-                    className="fixed left-2 right-2 top-20 sm:absolute sm:left-auto sm:right-0 sm:top-11 sm:w-80 rounded-2xl shadow-2xl overflow-hidden z-60"
+                    className="absolute right-0 top-11 w-80 rounded-2xl shadow-2xl border overflow-hidden z-50"
                     style={{
                       background: "var(--bg-surface)",
-                      border: "1px solid var(--border)",
+                      borderColor: "var(--border)",
                     }}
                   >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e6e3]">
+                    <div
+                      className="flex items-center justify-between px-4 py-3 border-b"
+                      style={{ borderColor: "var(--border)" }}
+                    >
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm text-[#2a2420] font-normal">
+                        <h3
+                          className="text-sm font-normal"
+                          style={{ color: "var(--text-primary)" }}
+                        >
                           Notifications
                         </h3>
                         {unreadCount > 0 && (
-                          <span className="text-xs bg-[#8b7355] text-white px-2 py-0.5 rounded-full font-light">
+                          <span
+                            className="text-xs text-white px-2 py-0.5 rounded-full font-light"
+                            style={{ background: "var(--brand)" }}
+                          >
                             {unreadCount}
                           </span>
                         )}
@@ -236,7 +280,8 @@ export function AuthNav({
                       {unreadCount > 0 && (
                         <button
                           onClick={handleMarkAllRead}
-                          className="text-xs text-[#8b7355] hover:text-[#6d5a43] font-light flex items-center gap-1"
+                          className="text-xs font-light flex items-center gap-1"
+                          style={{ color: "var(--brand)" }}
                         >
                           <Check size={12} /> Mark all read
                         </button>
@@ -247,18 +292,31 @@ export function AuthNav({
                     <div className="max-h-80 overflow-y-auto">
                       {notifLoading && notifList.length === 0 ? (
                         <div className="py-8 text-center">
-                          <div className="w-5 h-5 border-2 border-[#8b7355]/30 border-t-[#8b7355] rounded-full animate-spin mx-auto" />
+                          <div
+                            className="w-5 h-5 border-2 rounded-full animate-spin mx-auto"
+                            style={{
+                              borderColor: "var(--bg-muted)",
+                              borderTopColor: "var(--brand)",
+                            }}
+                          />
                         </div>
                       ) : notifList.length === 0 ? (
                         <div className="py-10 text-center">
                           <Bell
                             size={28}
-                            className="text-[#e8e6e3] mx-auto mb-2"
+                            className="mx-auto mb-2"
+                            style={{ color: "var(--border)" }}
                           />
-                          <p className="text-sm text-[#8b7355] font-light">
+                          <p
+                            className="text-sm font-light"
+                            style={{ color: "var(--brand)" }}
+                          >
                             All caught up!
                           </p>
-                          <p className="text-xs text-[#5a5450] font-light mt-1">
+                          <p
+                            className="text-xs font-light mt-1"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
                             No notifications yet
                           </p>
                         </div>
@@ -266,23 +324,36 @@ export function AuthNav({
                         notifList.map((notif) => (
                           <div
                             key={notif._id}
-                            className={`flex items-start gap-3 px-4 py-3 hover:bg-[#fafaf9] transition-all border-b border-[#f0ede9] last:border-0 ${!notif.isRead ? "bg-[#fdf9f5]" : ""}`}
+                            className="flex items-start gap-3 px-4 py-3 transition-all border-b last:border-0"
+                            style={{
+                              background: !notif.isRead
+                                ? "var(--bg-subtle)"
+                                : "transparent",
+                              borderColor: "var(--border)",
+                            }}
                           >
-                            <div className="w-8 h-8 rounded-full bg-[#f8f6f3] flex items-center justify-center shrink-0 mt-0.5">
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                              style={{ background: "var(--bg-muted)" }}
+                            >
                               <NotificationIcon type={notif.type} />
                             </div>
                             <div
-                              className="flex-1 min-w-0"
+                              className="flex-1 min-w-0 cursor-pointer"
                               onClick={() =>
                                 !notif.isRead && handleMarkRead(notif._id)
                               }
                             >
                               <p
-                                className={`text-xs leading-snug ${!notif.isRead ? "text-[#2a2420] font-normal" : "text-[#5a5450] font-light"}`}
+                                className="text-xs leading-snug font-light"
+                                style={{ color: "var(--text-primary)" }}
                               >
                                 {notif.message}
                               </p>
-                              <p className="text-[10px] text-[#8b7355] font-light mt-0.5 opacity-70">
+                              <p
+                                className="text-[10px] font-light mt-0.5 opacity-70"
+                                style={{ color: "var(--brand)" }}
+                              >
                                 {timeAgo(notif.createdAt)}
                               </p>
                             </div>
@@ -290,14 +361,19 @@ export function AuthNav({
                               {!notif.isRead && (
                                 <button
                                   onClick={() => handleMarkRead(notif._id)}
-                                  className="w-5 h-5 rounded-full bg-[#8b7355]/10 hover:bg-[#8b7355] hover:text-white text-[#8b7355] flex items-center justify-center transition-all"
+                                  className="w-5 h-5 rounded-full flex items-center justify-center transition-all"
+                                  style={{
+                                    background: "var(--bg-muted)",
+                                    color: "var(--brand)",
+                                  }}
                                 >
                                   <Check size={10} />
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete(notif._id)}
-                                className="w-5 h-5 rounded-full hover:bg-red-50 text-[#5a5450]/40 hover:text-red-400 flex items-center justify-center transition-all"
+                                className="w-5 h-5 rounded-full flex items-center justify-center transition-all hover:bg-red-50 hover:text-red-400"
+                                style={{ color: "var(--text-faint)" }}
                               >
                                 <Trash2 size={10} />
                               </button>
@@ -306,15 +382,20 @@ export function AuthNav({
                         ))
                       )}
                     </div>
-
-                    {/* Footer */}
-                    <div className="px-4 py-2.5 border-t border-[#e8e6e3] bg-[#fafaf9]">
+                    <div
+                      className="px-4 py-2.5 border-t"
+                      style={{
+                        background: "var(--bg-subtle)",
+                        borderColor: "var(--border)",
+                      }}
+                    >
                       <button
                         onClick={() => {
                           navigate("/notifications");
                           setNotifOpen(false);
                         }}
-                        className="w-full text-xs text-[#8b7355] font-light text-center hover:underline"
+                        className="w-full text-xs font-light text-center hover:underline"
+                        style={{ color: "var(--brand)" }}
                       >
                         View all notifications →
                       </button>
@@ -323,40 +404,61 @@ export function AuthNav({
                 )}
               </div>
 
-              {/* ── Profile ───────────────────────────────────────────────── */}
+              {/* ── Profile dropdown ──────────────────────────────────── */}
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => {
                     setProfileOpen((o) => !o);
                     setNotifOpen(false);
                   }}
-                  className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-[#f8f6f3] transition-all"
+                  className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full transition-all hover:scale-105"
+                  style={{
+                    background: profileOpen ? "var(--bg-muted)" : "transparent",
+                  }}
                 >
-                  <div className="w-7 h-7 rounded-full bg-linear-to-br from-[#8b7355] to-[#6d5a43] flex items-center justify-center text-white text-xs font-light">
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-light"
+                    style={{
+                      background: "linear-gradient(135deg, #8b7355, #6d5a43)",
+                    }}
+                  >
                     {avatarLetter}
                   </div>
-                  <span className="hidden sm:block text-sm text-[#2a2420] font-light max-w-25 truncate">
+                  <span
+                    className="hidden sm:block text-sm font-light max-w-25 truncate"
+                    style={{ color: "var(--text-primary)" }}
+                  >
                     {userName || "Profile"}
                   </span>
                   <ChevronDown
                     size={14}
-                    className={`text-[#8b7355] transition-transform hidden sm:block ${profileOpen ? "rotate-180" : ""}`}
+                    className={`hidden sm:block transition-transform ${profileOpen ? "rotate-180" : ""}`}
+                    style={{ color: "var(--brand)" }}
                   />
                 </button>
 
                 {profileOpen && (
                   <div
-                    className="fixed right-2 top-20 sm:absolute sm:right-0 sm:top-11 sm:w-48 w-56 rounded-2xl shadow-xl overflow-hidden z-60"
+                    className="absolute right-0 top-11 w-52 rounded-2xl shadow-xl border overflow-hidden z-50"
                     style={{
                       background: "var(--bg-surface)",
-                      border: "1px solid var(--border)",
+                      borderColor: "var(--border)",
                     }}
                   >
-                    <div className="px-4 py-3 border-b border-[#e8e6e3]">
-                      <p className="text-sm text-[#2a2420] font-light truncate">
+                    <div
+                      className="px-4 py-3 border-b"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <p
+                        className="text-sm font-light truncate"
+                        style={{ color: "var(--text-primary)" }}
+                      >
                         {userName || "User"}
                       </p>
-                      <p className="text-xs text-[#8b7355] font-light">
+                      <p
+                        className="text-xs font-light"
+                        style={{ color: "var(--brand)" }}
+                      >
                         DermAI member
                       </p>
                     </div>
@@ -365,23 +467,46 @@ export function AuthNav({
                         onUpdateProfile?.();
                         setProfileOpen(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#f8f6f3] text-left text-sm text-[#2a2420] font-light transition-all"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-light transition-all hover:bg-(--bg-subtle)"
+                      style={{ color: "var(--text-primary)" }}
                     >
-                      <User size={14} className="text-[#8b7355]" /> Edit Profile
+                      <User size={14} style={{ color: "var(--brand)" }} /> Edit
+                      Profile
                     </button>
                     <button
                       onClick={() => {
                         navigate("/settings");
                         setProfileOpen(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#f8f6f3] text-left text-sm text-[#2a2420] font-light transition-all"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-light transition-all hover:bg-(--bg-subtle)"
+                      style={{ color: "var(--text-primary)" }}
                     >
-                      <Settings size={14} className="text-[#8b7355]" /> Settings
+                      <Settings size={14} style={{ color: "var(--brand)" }} />{" "}
+                      Settings
                     </button>
-                    <div className="border-t border-[#e8e6e3]">
+                    {/* Theme toggle inside dropdown */}
+                    <button
+                      onClick={() => {
+                        toggleTheme();
+                        setProfileOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-light transition-all hover:bg-(--bg-subtle)"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {isDark ? (
+                        <Sun size={14} className="text-amber-400" />
+                      ) : (
+                        <Moon size={14} className="text-indigo-400" />
+                      )}
+                      {isDark ? "Light mode" : "Dark mode"}
+                    </button>
+                    <div
+                      className="border-t"
+                      style={{ borderColor: "var(--border)" }}
+                    >
                       <button
                         onClick={() => navigate("/login")}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 text-left text-sm text-red-500 font-light transition-all"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-red-500 font-light transition-all hover:bg-red-50"
                       >
                         <LogOut size={14} /> Sign Out
                       </button>
@@ -390,24 +515,30 @@ export function AuthNav({
                 )}
               </div>
 
-              {/* Mobile menu toggle */}
+              {/* Mobile hamburger */}
               <button
                 onClick={() => setMobileOpen((o) => !o)}
-                className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#f8f6f3] transition-all"
+                className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center transition-all"
+                style={{
+                  background: "var(--bg-muted)",
+                  color: "var(--text-primary)",
+                }}
               >
-                {mobileOpen ? (
-                  <X size={18} className="text-[#2a2420]" />
-                ) : (
-                  <Menu size={18} className="text-[#2a2420]" />
-                )}
+                {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile menu */}
         {mobileOpen && (
-          <div className="lg:hidden mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-[#e8e6e3]/40 overflow-hidden">
+          <div
+            className="lg:hidden mt-2 rounded-2xl shadow-xl border overflow-hidden"
+            style={{
+              background: "var(--bg-surface)",
+              borderColor: "var(--border)",
+            }}
+          >
             <div className="p-3 space-y-1">
               {NAV_LINKS.map((link) => (
                 <button
@@ -416,15 +547,35 @@ export function AuthNav({
                     navigate(link.path);
                     setMobileOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-light transition-all ${
+                  className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-light transition-all"
+                  style={
                     currentPage === link.key
-                      ? "bg-[#2a2420] text-white"
-                      : "text-[#2a2420] hover:bg-[#f8f6f3]"
-                  }`}
+                      ? {
+                          background: "var(--text-primary)",
+                          color: "var(--bg-base)",
+                        }
+                      : { color: "var(--text-primary)" }
+                  }
                 >
                   {link.label}
                 </button>
               ))}
+              {/* Theme toggle in mobile menu */}
+              <button
+                onClick={() => {
+                  toggleTheme();
+                  setMobileOpen(false);
+                }}
+                className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-light transition-all flex items-center gap-3"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {isDark ? (
+                  <Sun size={15} className="text-amber-400" />
+                ) : (
+                  <Moon size={15} className="text-indigo-400" />
+                )}
+                {isDark ? "Switch to light mode" : "Switch to dark mode"}
+              </button>
             </div>
           </div>
         )}
