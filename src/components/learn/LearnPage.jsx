@@ -240,7 +240,6 @@ export function LearnPage() {
             {!searchQuery && !selectedCategory && featured.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <Sparkles size={18} className="text-[#8b7355]" />
                   <h2 className="text-lg text-[#2a2420] font-light">Featured</h2>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
