@@ -35,8 +35,7 @@ import {
 } from "lucide-react";
 
 // ─── Article Reader Modal ─────────────────────────────────────────────────────
-function ArticleModal({ article, onClose, onLike }) {
-  if (!article) return null;
+function ArticleModal({ article, loading, onClose, onLike }) {
   const renderContent = (md) => {
     return md.split("\n").map((line, i) => {
       if (line.startsWith("## "))
@@ -71,6 +70,41 @@ function ArticleModal({ article, onClose, onLike }) {
       );
     });
   };
+  if (!article) return null;
+  // const renderContent = (md) => {
+  //   return md.split("\n").map((line, i) => {
+  //     if (line.startsWith("## "))
+  //       return (
+  //         <h3 key={i} className="text-lg text-[#2a2420] font-light mt-5 mb-2">
+  //           {line.replace("## ", "")}
+  //         </h3>
+  //       );
+  //     if (line.startsWith("# "))
+  //       return (
+  //         <h2 key={i} className="text-xl text-[#2a2420] font-light mt-6 mb-2">
+  //           {line.replace("# ", "")}
+  //         </h2>
+  //       );
+  //     if (line.startsWith("- ") || line.startsWith("* "))
+  //       return (
+  //         <li
+  //           key={i}
+  //           className="text-sm text-[#5a5450] font-light ml-4 mb-1 list-disc"
+  //         >
+  //           {line.replace(/^[-*] /, "").replace(/\*\*(.*?)\*\*/g, "$1")}
+  //         </li>
+  //       );
+  //     if (line.trim() === "") return <br key={i} />;
+  //     const bold = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  //     return (
+  //       <p
+  //         key={i}
+  //         className="text-sm text-[#5a5450] font-light leading-relaxed mb-2"
+  //         dangerouslySetInnerHTML={{ __html: bold }}
+  //       />
+  //     );
+  //   });
+  // };
 
   return (
     <div
@@ -117,9 +151,23 @@ function ArticleModal({ article, onClose, onLike }) {
               <X size={16} className="text-[#2a2420]" />
             </button>
           </div>
-          <div className="prose max-w-none">
-            {renderContent(article.content || article.excerpt || "")}
-          </div>
+
+          {/* Content area — loader or actual content */}
+          {loading ? (
+            <div className="space-y-3 py-4">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-3 bg-[#e8e6e3] rounded-full animate-pulse ${i % 3 === 2 ? "w-2/3" : "w-full"}`}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="prose max-w-none">
+              {renderContent(article.content || article.excerpt || "")}
+            </div>
+          )}
+
           <div className="flex items-center gap-3 mt-6 pt-4 border-t border-[#e8e6e3]">
             <button
               onClick={() => onLike(article.slug)}
@@ -211,6 +259,7 @@ export function LearnPage() {
   const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [articleLoading, setArticleLoading] = useState(false);
   const chatEndRef = useRef(null);
   const searchTimer = useRef(null);
 
@@ -278,11 +327,15 @@ export function LearnPage() {
   };
 
   const handleOpenArticle = async (article) => {
-    setOpenArticle(article); // open modal immediately with list data
+    setOpenArticle(article);
+    setArticleLoading(true);
     try {
       const data = await learn.getBySlug(article.slug);
-      setOpenArticle(data.article); // swap in full content once loaded
-    } catch {}
+      setOpenArticle(data.article);
+    } catch {
+    } finally {
+      setArticleLoading(false);
+    }
   };
 
   // FIX: was raw fetch with manual token — now uses chat.send from api.js
@@ -362,6 +415,7 @@ export function LearnPage() {
       {openArticle && (
         <ArticleModal
           article={openArticle}
+          loading={articleLoading}
           onClose={() => setOpenArticle(null)}
           onLike={handleLike}
         />
